@@ -1,0 +1,3 @@
+[submodule "doc"]
+	path = doc
+	url = https://github.com/retr0-init/discord-bot-framework-doc.git
