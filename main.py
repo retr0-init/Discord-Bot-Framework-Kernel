@@ -5,12 +5,16 @@ This script initializes extensions and starts the bot
 """
 import os
 import sys
+import pathlib
+import tempfile
 
 import interactions
 from dotenv import load_dotenv
 
 from config import DEBUG, DEV_GUILD
-from src import logutil
+from src import logutil, compressutil
+
+from typing import Union
 
 load_dotenv()
 
@@ -22,6 +26,12 @@ just an indicator. You may safely ignore",
     DEBUG,
 )
 
+def compress_temp() -> Union[str, pathlib.Path]:
+    tmp = tempfile.NamedTemporaryFile(suffix=".tar.gz", prefix="Discord-Bot-Framework_")
+    filename = tmp.name
+    tmp.close()
+    compressutil.compress_directory(pathlib.Path(__file__).parent.resolve(), filename)
+    return filename
 
 if not os.environ.get("TOKEN"):
     logger.critical("TOKEN variable not set. Cannot continue")
@@ -48,6 +58,12 @@ extensions = [
     for f in os.listdir("extensions")
     if f.endswith(".py") and not f.startswith("_")
 ]
+
+try:
+    client.load_extension("interactions.ext.jurigged")
+except interactions.errors.ExtensionLoadException as e:
+    logger.exception(f"Failed to load extension {extension}.", exc_info=e)
+
 for extension in extensions:
     try:
         client.load_extension(extension)

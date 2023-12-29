@@ -1,2 +1,4 @@
-discord-py-interactions==5.0.0
-python-dotenv==0.19.1
+discord-py-interactions>=5.11.0
+python-dotenv>=0.19.1
+jurigged
+pygit2>=1.13.3
