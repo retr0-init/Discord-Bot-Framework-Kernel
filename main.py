@@ -12,7 +12,7 @@ import interactions
 from dotenv import load_dotenv
 
 from config import DEBUG, DEV_GUILD
-from src import logutil, compressutil
+from src import logutil, compressutil, moduleutil
 
 from typing import Union
 
@@ -50,6 +50,95 @@ client = interactions.Client(
 async def on_startup():
     """Called when the bot starts"""
     logger.info(f"Logged in as {client.user}")
+
+
+################ Kernel functions START ################
+kernel_base: interactions.SlashCommand = interactions.SlashCommand(name="kernel", description="Bot Framework Kernel Commands")
+kernel_module: interactions.SlashCommand = kernel_base.group(name="module", description="Bot Framework Kernel Module Commands")
+kernel_review: interactions.SlashCommand = kernel_base.group(name="review", description="Bot Framework Kernel Review Commands")
+
+'''
+Load the module from remote HTTPS Git Repository
+CC-BY-SA-3.0: https://stackoverflow.com/a/14050282
+'''
+@kernel_module.subcommand("load", sub_cmd_description="Load module from Git repo with HTTPS")
+@interactions.slash_option(
+    name = "url",
+    description = "HTTPS URL to module",
+    required = True,
+    opt_type = interactions.OptionType.STRING
+)
+async def kernel_module_load(ctx: interactions.SlashContext, url: str):
+    await ctx.send("LOAD")
+
+
+'''
+Kernel module unload / update module option wrapper
+'''
+def kernel_module_option_module():
+    def wrapper(func):
+        return interactions.slash_option(
+            name = "module",
+            description = "The name of the loaded module. Check with the list command.",
+            required = True,
+            opt_type = interactions.OptionType.STRING,
+            autocomplete = True
+        )(func)
+    return wrapper
+
+
+'''
+Unload the module from kernel
+'''
+@kernel_module.subcommand("unload", sub_cmd_description="Unload module")
+@kernel_module_option_module()
+async def kernel_module_unload(ctx: interactions.SlashContext, module: str):
+    await ctx.send("UNLOAD")
+
+
+'''
+List all loaded modules in kernel
+'''
+@kernel_module.subcommand("list", sub_cmd_description="List loaded modules")
+async def kernel_module_list(ctx: interactions.SlashContext):
+    await ctx.send("LIST")
+
+
+'''
+Update the loaded module in kernel
+'''
+@kernel_module.subcommand("update", sub_cmd_description="Update the module")
+@kernel_module_option_module()
+async def kernel_module_update(ctx: interactions.SlashContext, module: str):
+    await ctx.send("UPDATE")
+
+
+'''
+Autocomplete function for the kernel module unloading and update commands
+'''
+@kernel_module_unload.autocomplete("module")
+@kernel_module_update.autocomplete("module")
+async def kernel_module_option_module_autocomplete(ctx: interactions.AutocompleteContext):
+    module_option_input: str = ctx.input_text
+
+    await ctx.send(
+        choices = [
+            {
+                "name":     f"{module_option_input}a",
+                "value":    f"{module_option_input}a",
+            },
+        ]
+    )
+
+
+
+'''
+Download the running code in tarball (.tar.gz)
+'''
+@kernel_review.subcommand("download", sub_cmd_description="Download current running code in tarball")
+async def kernel_review_download(ctx: interactions.SlashContext):
+    await ctx.send("DOWNLOAD")
+################ Kernel functions START ################
 
 
 # get all python files in "extensions" folder
