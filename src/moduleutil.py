@@ -3,6 +3,7 @@ import shutil
 import os
 from urllib.parse import urlsplit
 from threading import Thread
+import pip
 
 
 up_conv_dict: dict = {
@@ -106,3 +107,34 @@ def gitrepo_delete(name: str) -> None:
         shutil.rmtree(path)
     except OSError as e:
         print(f"Error: {e.filename} - {e.strerror}")
+
+
+if hasattr(pip, "main"):
+    pip_main = pip.main
+else:
+    pip_main = pip._internal.main
+
+'''
+Pip (un)install packages
+
+@param *packages: str   The python packages to be installed
+@param install: bool    (Default: True) Whether to install or uninstall packages
+@return success: bool
+'''
+def pipmodule_operate(*packages: str, install: bool = True) -> bool:
+    install_str: tuple[str] = ("install") if install else ("uninstall", "-y")
+    ret: int = pip_main([*install_str, *packages])
+    return True if ret == 0 else False
+
+
+'''
+Pip (un)install packages from requirements.txt
+
+@param file_path: str   The path to the requirements.txt file
+@param install: bool    (Default: True) Whether to install or uninstall packages
+@return sucess: bool
+'''
+def piprequirements_operate(file_path: str, install: bool = True):
+    install_str: tuple[str] = ("install") if install else ("uninstall", "-y")
+    ret: int = pip_main([*install_str, "-r", file_path])
+    return True if ret == 0 else False
