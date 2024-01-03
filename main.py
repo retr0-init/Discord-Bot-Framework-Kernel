@@ -16,6 +16,10 @@ from src import logutil, compressutil, moduleutil
 
 from typing import Union
 
+from icecream import ic
+
+ic.disable()
+
 load_dotenv()
 
 # Configure logging for this main.py handler
@@ -57,7 +61,7 @@ kernel_base: interactions.SlashCommand = interactions.SlashCommand(name="kernel"
 kernel_module: interactions.SlashCommand = kernel_base.group(name="module", description="Bot Framework Kernel Module Commands")
 kernel_review: interactions.SlashCommand = kernel_base.group(name="review", description="Bot Framework Kernel Review Commands")
 
-'''
+'''TODO: test the code
 Load the module from remote HTTPS Git Repository
 CC-BY-SA-3.0: https://stackoverflow.com/a/14050282
 '''
@@ -69,7 +73,63 @@ CC-BY-SA-3.0: https://stackoverflow.com/a/14050282
     opt_type = interactions.OptionType.STRING
 )
 async def kernel_module_load(ctx: interactions.SlashContext, url: str):
-    await ctx.send("LOAD")
+    logger.debug("Kernel module load START")
+    ic()
+    # Defer the context as the following actions may cost more than 3 seconds
+    await ctx.defer(ephemeral = True)
+    ic()
+    #TODO check whether this defer is necessary
+    # Defer the non-ephemeral context
+    await ctx.defer()
+    ic()
+    # Parse and validate the Git repository url
+    git_url, parsed, validated = moduleutil.giturl_parse(url)
+    if not validated:
+        ic()
+        await ctx.send("The loaded module is not an HTTPS Git Repo!", ephemeral = True)
+    else:
+        # Check whether the module extension folder exists
+        if os.path.isdir(os.path.join(os.getcwd(), "extensions", module)):
+            ic()
+            await ctx.send(f"The module {parsed} has been loaded!", ephemeral = True)
+        else:
+            # Clone the git repo
+            module, clone_validated = moduleutil.gitrepo_clone(git_url)
+            if not clone_validated:
+                ic()
+                logger.warning(f"Module {module} clone failed")
+                await ctx.send(f"The module {module} clone failed!", ephemeral = True)
+            else:
+                requirements_path: str = os.path.join(os.getcwd(), "extensions", module, "requirements.txt")
+                # Check whether requirements.txt exists in the module repo
+                if not os.path.exists(requirements_path):
+                    ic()
+                    # If not delete the repo
+                    moduleutil.gitrepo_delete(module)
+                    logger.warning(f"Module {module} requirements.txt does not exist.")
+                    await ctx.send(f"The module {module} does not have `requirements.txt`", ephemeral = True)
+                else:
+                    # pip install -r requirements.txt
+                    success: bool = moduleutil.piprequirements_operate(requirements_path)
+                    if not success:
+                        ic()
+                        logger.warning(f"Module {module} requirements.txt install failed")
+                        await ctx.send(f"Module {module} `requirements.txt` install fail.", ephemeral = True)
+                    else:
+                        # Load the module into the kernel
+                        try:
+                            ic()
+                            client.load_extension(f"extensions.{module}.main")
+                            logger.info(f"Loaded extension {module}")
+                            await ctx.send(f"Module {module} loaded")
+                        except interactions.errors.ExtensionLoadException as e:
+                            ic()
+                            logger.exception(f"Failed to load extension {module}.", exc_info=e)
+                            # Delete the repo
+                            moduleutil.gitrepo_delete(module)
+                            await ctx.send(f"Module {module} load fail! The repo is removed.", ephemeral = True)
+    ic()
+    logger.debug("Kernel module load END")
 
 
 '''
