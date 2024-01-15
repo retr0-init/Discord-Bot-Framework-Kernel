@@ -4,7 +4,9 @@ import os
 from urllib.parse import urlsplit
 from threading import Thread
 import pip
+from icecream import ic
 
+ic.disable()
 
 up_conv_dict: dict = {
     '_': '_u_',
@@ -26,27 +28,36 @@ The resulting name will be:
 '''
 def giturl_parse(url: str) -> tuple[str, str, bool]:
     u = urlsplit(url)
+    ic(u)
 
     # Catch all errors
     uns: list[str] = u.netloc.split('.')
     if u.scheme != 'https':
+        ic()
         return url, "", False
     elif u.netloc == '':
+        ic()
         return url, "", False
     elif uns[-1] != 'com' or len(uns) < 2:
+        ic()
         return url, "", False
     elif u.path.split('.')[-1] != 'git':
+        ic()
         return url, "", False
 
     # Parse the net location
     netloc: str = '.'.join([_ for _ in uns if _ != 'www' or _ != 'com'])
+    ic(netloc)
     for _ in up_conv_dict:
         netloc = netloc.replace(_, up_conv_dict[_])
+    ic(netloc)
 
     # Parse the path to git repo
     path: str = u.path[1:-4]
+    ic(path)
     for _ in up_conv_dict:
         path = path.replace(_, up_conv_dict[_])
+    ic(path)
 
     return url, f"{netloc}__{path}", True
 
@@ -64,7 +75,7 @@ def gitrepo_clone(url: str) -> tuple[str, bool]:
     if not validated:
         return reponame, False
     try:
-        pygit2.clone_repository(url, reponame)
+        pygit2.clone_repository(url, f"extensions/{reponame}")
     except pygit2.GitError:
         return reponame, False
     return reponame, True
@@ -98,6 +109,7 @@ Remove the unloaded git repo.
 '''
 def gitrepo_delete(name: str) -> None:
     path: str = f"{os.getcwd()}/extensions/{name}"
+    ic(path)
     # Check whether the path is a git repo
     if pygit2.discover_repository(path) == "":
         return
@@ -135,6 +147,7 @@ Pip (un)install packages from requirements.txt
 @return sucess: bool
 '''
 def piprequirements_operate(file_path: str, install: bool = True):
-    install_str: tuple[str] = ("install") if install else ("uninstall", "-y")
+    install_str: list[str] = ["install"] if install else ["uninstall", "-y"]
+    ic([*install_str, "-r", file_path])
     ret: int = pip_main([*install_str, "-r", file_path])
     return True if ret == 0 else False

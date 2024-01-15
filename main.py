@@ -9,6 +9,8 @@ import pathlib
 import tempfile
 
 import interactions
+from interactions.ext import prefixed_commands
+from interactions.ext.prefixed_commands import prefixed_command, PrefixedContext
 from dotenv import load_dotenv
 
 from config import DEBUG, DEV_GUILD
@@ -50,12 +52,24 @@ client = interactions.Client(
         name="with interactions", type=interactions.ActivityType.PLAYING
     ),
     debug_scope=DEV_GUILD,
+    sync_interactions=True,
+    sync_ext=True,
+    intents=interactions.Intents.ALL,
 )
 
+prefixed_commands.setup(client, default_prefix="!")
+
+'''
+@prefixed_command(name="load")
+async def cmd_internal_load(ctx: PrefixedContext, module: str):
+    client.load_extension(f"extensions.{module}.main")
+    await ctx.reply(f"Loaded extensions.{module}.main")
+'''
 
 @interactions.listen()
 async def on_startup():
     """Called when the bot starts"""
+    await client.synchronise_interactions(delete_commands=True)
     logger.info(f"Logged in as {client.user}")
 
 
@@ -81,10 +95,6 @@ async def kernel_module_load(ctx: interactions.SlashContext, url: str):
     # Defer the context as the following actions may cost more than 3 seconds
     await ctx.defer(ephemeral = True)
     ic()
-    #TODO check whether this defer is necessary
-    # Defer the non-ephemeral context
-    await ctx.defer()
-    ic()
     # Parse and validate the Git repository url
     git_url, parsed, validated = moduleutil.giturl_parse(url)
     if not validated:
@@ -92,7 +102,7 @@ async def kernel_module_load(ctx: interactions.SlashContext, url: str):
         await ctx.send("The loaded module is not an HTTPS Git Repo!", ephemeral = True)
     else:
         # Check whether the module extension folder exists
-        if os.path.isdir(os.path.join(os.getcwd(), "extensions", module)):
+        if os.path.isdir(os.path.join(os.getcwd(), "extensions", parsed)):
             ic()
             await ctx.send(f"The module {parsed} has been loaded!", ephemeral = True)
         else:
@@ -104,6 +114,7 @@ async def kernel_module_load(ctx: interactions.SlashContext, url: str):
                 await ctx.send(f"The module {module} clone failed!", ephemeral = True)
             else:
                 requirements_path: str = os.path.join(os.getcwd(), "extensions", module, "requirements.txt")
+                ic(requirements_path)
                 # Check whether requirements.txt exists in the module repo
                 if not os.path.exists(requirements_path):
                     ic()
@@ -123,8 +134,9 @@ async def kernel_module_load(ctx: interactions.SlashContext, url: str):
                         try:
                             ic()
                             client.load_extension(f"extensions.{module}.main")
-                            logger.info(f"Loaded extension {module}")
-                            await ctx.send(f"Module {module} loaded")
+                            await client.synchronise_interactions()
+                            logger.info(f"Loaded extension extensions.{module}.main")
+                            await ctx.send(f"Module `extensions.{module}.main` loaded")
                         except interactions.errors.ExtensionLoadException as e:
                             ic()
                             logger.exception(f"Failed to load extension {module}.", exc_info=e)
