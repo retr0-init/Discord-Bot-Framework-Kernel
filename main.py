@@ -9,10 +9,13 @@ import pathlib
 import tempfile
 
 import interactions
-from interactions.ext import prefixed_commands
-from interactions.ext.prefixed_commands import prefixed_command, PrefixedContext
+# from interactions.ext import prefixed_commands
+# from interactions.ext.prefixed_commands import prefixed_command, PrefixedContext
 from dotenv import load_dotenv
 
+'''
+The DEV_GUILD must be set to a specific guild_id
+'''
 from config import DEBUG, DEV_GUILD
 from src import logutil, compressutil, moduleutil
 
@@ -57,12 +60,12 @@ client = interactions.Client(
     intents=interactions.Intents.ALL,
 )
 
+'''
 prefixed_commands.setup(client, default_prefix="!")
 
-'''
 @prefixed_command(name="load")
 async def cmd_internal_load(ctx: PrefixedContext, module: str):
-    client.load_extension(f"extensions.{module}.main")
+    client.reload_extension(f"extensions.{module}.main")
     await ctx.reply(f"Loaded extensions.{module}.main")
 '''
 
@@ -78,8 +81,9 @@ kernel_base: interactions.SlashCommand = interactions.SlashCommand(name="kernel"
 kernel_module: interactions.SlashCommand = kernel_base.group(name="module", description="Bot Framework Kernel Module Commands")
 kernel_review: interactions.SlashCommand = kernel_base.group(name="review", description="Bot Framework Kernel Review Commands")
 
-'''TODO: test the code
+'''
 Load the module from remote HTTPS Git Repository
+The scope must be set to a specific guild_id
 CC-BY-SA-3.0: https://stackoverflow.com/a/14050282
 '''
 @kernel_module.subcommand("load", sub_cmd_description="Load module from Git repo with HTTPS")
@@ -133,8 +137,7 @@ async def kernel_module_load(ctx: interactions.SlashContext, url: str):
                         # Load the module into the kernel
                         try:
                             ic()
-                            client.load_extension(f"extensions.{module}.main")
-                            await client.synchronise_interactions()
+                            client.reload_extension(f"extensions.{module}.main")
                             logger.info(f"Loaded extension extensions.{module}.main")
                             await ctx.send(f"Module `extensions.{module}.main` loaded")
                         except interactions.errors.ExtensionLoadException as e:
