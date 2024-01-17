@@ -171,7 +171,15 @@ Unload the module from kernel
 @kernel_module.subcommand("unload", sub_cmd_description="Unload module")
 @kernel_module_option_module()
 async def kernel_module_unload(ctx: interactions.SlashContext, module: str):
-    await ctx.send("UNLOAD")
+    ctx.defer(ephemeral=True)
+    try:
+        client.unload_extension(f"extensions.{module}.main")
+        moduleutil.gitrepo_delete(module)
+        await client.synchronise_interactions(delete_commands=True)
+    except:
+        await ctx.send(f"Module {module} either not exists or failed to unload")
+    else:
+        await ctx.send(f"Module {module} unloaded", ephemeral=True)
 
 
 '''
@@ -202,8 +210,8 @@ async def kernel_module_option_module_autocomplete(ctx: interactions.Autocomplet
     await ctx.send(
         choices = [
             {
-                "name":     f"{module_option_input}a",
-                "value":    f"{module_option_input}a",
+                "name":     f"{module_option_input}",
+                "value":    f"{module_option_input}",
             },
         ]
     )
