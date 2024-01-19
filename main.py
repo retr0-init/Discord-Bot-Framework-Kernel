@@ -3,6 +3,8 @@ Main script to run
 
 This script initializes extensions and starts the bot
 """
+import asyncio
+from aiofile import async_open
 import os
 import sys
 import pathlib
@@ -171,15 +173,15 @@ Unload the module from kernel
 @kernel_module.subcommand("unload", sub_cmd_description="Unload module")
 @kernel_module_option_module()
 async def kernel_module_unload(ctx: interactions.SlashContext, module: str):
-    ctx.defer(ephemeral=True)
+    await ctx.defer(ephemeral=True)
     try:
         client.unload_extension(f"extensions.{module}.main")
         moduleutil.gitrepo_delete(module)
         await client.synchronise_interactions(delete_commands=True)
     except:
-        await ctx.send(f"Module {module} either not exists or failed to unload")
+        await ctx.send(f"Module {module} either not exists or failed to unload", ephemeral=True)
     else:
-        await ctx.send(f"Module {module} unloaded", ephemeral=True)
+        await ctx.send(f"Module {module} unloaded")
 
 
 '''
@@ -196,7 +198,40 @@ Update the loaded module in kernel
 @kernel_module.subcommand("update", sub_cmd_description="Update the module")
 @kernel_module_option_module()
 async def kernel_module_update(ctx: interactions.SlashContext, module: str):
-    await ctx.send("UPDATE")
+    await ctx.defer()
+    # Check whether the module exists in the folder
+    if not os.path.isdir(f"extensions/{module}"):
+        await ctx.send("The extension {module} does not exist!", ephemeral=True)
+        return
+    # Update the repo
+    err: int = moduleutil.gitrepo_pull(module)
+    # Return if the module is NOT a Git repo or updating failed
+    if err != 0:
+        reason: list[str] = [
+            "Not a git repo",
+            "Remote repo fetch failed",
+            "`master` branch does not exist"
+        ]
+        await ctx.send("Module update failed! The reason is: {}".format(reason[err - 1]), ephemeral=True)
+        return
+    # Install requirements.txt
+    requirements_path: str = f"{os.getcwd()}/extensions/{module}/requirements.txt"
+    if not os.path.exists(requirements_path):
+        await ctx.send("`requirements.txt` does not exist! No reloading!", ephemeral=True)
+        return
+    moduleutil.piprequirements_operate(requirements_path)
+    # Reload module
+    client.reload_extension(f"extensions.{module}.main")
+    # Synchronise the slash command
+    await client.synchronise_interactions(delete_commands=True)
+    # Check CHANGELOG
+    changelog_path: str = f"{os.getcwd()}/extensions/{module}/CHANGELOG"
+    if os.path.isfile(changelog_path):
+        async with async_open(changelog_path) as f:
+            cl: str = await f.read()
+    else:
+        cL: str = "CHANGELOG not provided!"
+    await ctx.send(f"Module `{module}` updated!\nCHANGELOG:\n```\n{cl}\n```", ephemeral=False)
 
 
 '''
