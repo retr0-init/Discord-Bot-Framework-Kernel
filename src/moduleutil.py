@@ -87,19 +87,51 @@ Note that this only pull changes, it does NOT merge the changes
  if there are local changes and commits.
 CC-BY-SA-3.0: https://stackoverflow.com/a/27786533
 
-@param name: str    The module name of the repo
+@param name: str        The module name of the repo
+@return err_code: int   Error code (
+    0:  Success
+    1:  It is not a git repo
+    2:  Git fetch failed
+    3:  Not found master branch
+)
 '''
-def gitrepo_pull(name: str) -> None:
+def gitrepo_pull(name: str) -> int:
     path: str = f"{os.getcwd()}/extensions/{name}"
+    repo_path: str = pygit2.discover_repository(path)
+    if repo_path == pygit2.discover_repository(os.getcwd()):
+        # Not a git repo
+        ic()
+        return 1
     repo: pygit2.Repository = pygit2.Repository(
-        pygit2.discover_repository(path)
+        repo_path
     )
-    repo.remotes["origin"].fetch()
-    remote_master_id: str = repo.lookup_reference('refs/remotes/origin/master').target
-    repo.checkout_tree(repo.get(remote_master_id))
-    master_ref: pygit2.Reference = repo.lookup_reference('refs/heads/master')
-    master_ref.set_target(remote_master_id)
-    repo.head.set_target(remote_master_id)
+    try:
+        repo.remotes["origin"].fetch()
+    except:
+        ic()
+        # Remote fetch failed
+        return 2
+    
+    try:
+        remote_master_id: str = repo.lookup_reference('refs/remotes/origin/master').target
+    except KeyError:
+        # Remote Master branch does not exist
+        ic()
+        return 3
+    else:
+        repo.checkout_tree(repo.get(remote_master_id))
+
+    try:
+        master_ref: pygit2.Reference = repo.lookup_reference('refs/heads/master')
+    except KeyError:
+        # Local master branch does not exist
+        ic()
+        return 3
+    else:
+        master_ref.set_target(remote_master_id)
+        repo.head.set_target(remote_master_id)
+    # Success
+    return 0
 
 
 '''
@@ -111,10 +143,11 @@ def gitrepo_delete(name: str) -> None:
     path: str = f"{os.getcwd()}/extensions/{name}"
     ic(path)
     # Check whether the path is a git repo
-    if pygit2.discover_repository(path) == "":
+    if pygit2.discover_repository(path) == pygit2.discover_repository(os.getcwd()):
         return
     if shutil.rmtree.avoids_symlink_attacks:
         print("This system is prone to symlink attacks. Be aware!")
+    piprequirements_operate(f"{path}/requirements.txt", install=False)
     try:
         shutil.rmtree(path)
     except OSError as e:
@@ -146,8 +179,7 @@ Pip (un)install packages from requirements.txt
 @param install: bool    (Default: True) Whether to install or uninstall packages
 @return sucess: bool
 '''
-def piprequirements_operate(file_path: str, install: bool = True):
-    install_str: list[str] = ["install"] if install else ["uninstall", "-y"]
-    ic([*install_str, "-r", file_path])
+def piprequirements_operate(file_path: str, install: bool = True) -> bool:
+    install_str: list[str] = ["install", "-U"] if install else ["uninstall", "-y"]
     ret: int = pip_main([*install_str, "-r", file_path])
     return True if ret == 0 else False
