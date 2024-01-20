@@ -276,6 +276,10 @@ extensions = [
     f"extensions.{f[:-3]}"
     for f in os.listdir("extensions")
     if f.endswith(".py") and not f.startswith("_")
+] + [
+    f"extensions.{i}.main"
+    for i in os.listdir("extensions")
+    if os.path.isdir(f"extensions/{i}") and i != "__pycache__" and moduleutil.is_gitrepo(i)
 ]
 
 try:
