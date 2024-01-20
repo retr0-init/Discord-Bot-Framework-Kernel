@@ -250,13 +250,21 @@ Autocomplete function for the kernel module unloading and update commands
 @kernel_module_update.autocomplete("module")
 async def kernel_module_option_module_autocomplete(ctx: interactions.AutocompleteContext):
     module_option_input: str = ctx.input_text
+    modules: list[str] = [
+        i
+        for i in os.listdir("extensions")
+        if os.path.isdir(f"extensions/{i}") and i != "__pycache__" and moduleutil.is_gitrepo(i)
+    ]
+    modules_auto: list[str] = [
+        i for i in modules if module_option_input in i
+    ]
 
     await ctx.send(
         choices = [
             {
-                "name":     f"{module_option_input}",
-                "value":    f"{module_option_input}",
-            },
+                "name":     i,
+                "value":    i,
+            } for i in modules_auto
         ]
     )
 
