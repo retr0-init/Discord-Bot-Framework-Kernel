@@ -189,7 +189,16 @@ List all loaded modules in kernel
 '''
 @kernel_module.subcommand("list", sub_cmd_description="List loaded modules")
 async def kernel_module_list(ctx: interactions.SlashContext):
-    await ctx.send("LIST")
+    modules_o: list[str] = [i for i in os.listdir("extensions/") if os.path.isdir(f"extensions/{i}") and i != "__pycache__"]
+    # Check whether the folder is a Git repo
+    modules: list[str] = [i for i in modules_o if moduleutil.is_gitrepo(i)]
+    # Join the module list if the list is not empty
+    if len(modules) > 0:
+        modules_str: str = '- ' + '\n- '.join(modules)
+        await ctx.send("已加载的模块是\n" + modules_str)
+    else:
+        # There is no module loaded
+        await ctx.send("没有加载的模块")
 
 
 '''

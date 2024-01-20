@@ -143,7 +143,7 @@ def gitrepo_delete(name: str) -> None:
     path: str = f"{os.getcwd()}/extensions/{name}"
     ic(path)
     # Check whether the path is a git repo
-    if pygit2.discover_repository(path) == pygit2.discover_repository(os.getcwd()):
+    if not is_gitrepo(name):
         return
     if shutil.rmtree.avoids_symlink_attacks:
         print("This system is prone to symlink attacks. Be aware!")
@@ -153,6 +153,19 @@ def gitrepo_delete(name: str) -> None:
     except OSError as e:
         print(f"Error: {e.filename} - {e.strerror}")
 
+'''
+Check whether the folder is a Git repo
+
+@param name: str    The module name
+@return is_git: bool
+'''
+def is_gitrepo(name: str) -> bool:
+    path: str = f"{os.getcwd()}/extensions/{name}"
+    ic(path)
+    if pygit2.discover_repository(path) == pygit2.discover_repository(os.getcwd()):
+        return False
+    else:
+        return True
 
 if hasattr(pip, "main"):
     pip_main = pip.main
