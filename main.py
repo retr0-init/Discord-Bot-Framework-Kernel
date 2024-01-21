@@ -4,7 +4,7 @@ Main script to run
 This script initializes extensions and starts the bot
 """
 import asyncio
-from aiofile import async_open
+import aiofiles
 import os
 import sys
 import pathlib
@@ -40,12 +40,12 @@ just an indicator. You may safely ignore",
     DEBUG,
 )
 
-def compress_temp() -> Union[str, pathlib.Path]:
-    tmp = tempfile.NamedTemporaryFile(suffix=".tar.gz", prefix="Discord-Bot-Framework_")
-    filename = tmp.name
-    tmp.close()
+def compress_temp(filename: str) -> None:
+    # tmp = tempfile.NamedTemporaryFile(suffix=".tar.gz", prefix="Discord-Bot-Framework_")
+    # filename = tmp.name
+    # tmp.close()
     compressutil.compress_directory(pathlib.Path(__file__).parent.resolve(), filename)
-    return filename
+    # return filename
 
 if not os.environ.get("TOKEN"):
     logger.critical("TOKEN variable not set. Cannot continue")
@@ -236,7 +236,7 @@ async def kernel_module_update(ctx: interactions.SlashContext, module: str):
     # Check CHANGELOG
     changelog_path: str = f"{os.getcwd()}/extensions/{module}/CHANGELOG"
     if os.path.isfile(changelog_path):
-        async with async_open(changelog_path) as f:
+        async with aiofiles.open(changelog_path) as f:
             cl: str = await f.read()
     else:
         cL: str = "CHANGELOG not provided!"
@@ -275,8 +275,11 @@ Download the running code in tarball (.tar.gz)
 '''
 @kernel_review.subcommand("download", sub_cmd_description="Download current running code in tarball")
 async def kernel_review_download(ctx: interactions.SlashContext):
-    await ctx.send("DOWNLOAD")
-################ Kernel functions START ################
+    await ctx.defer()
+    with tempfile.NamedTemporaryFile(suffix=".tar.gz", prefix="Discord-Bot-Framework_") as f:
+        compress_temp(f.name)
+        await ctx.send("Current code that is running as attached", file=f.name)
+################ Kernel functions END ################
 
 
 # get all python files in "extensions" folder
