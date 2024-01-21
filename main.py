@@ -11,8 +11,8 @@ import pathlib
 import tempfile
 
 import interactions
-# from interactions.ext import prefixed_commands
-# from interactions.ext.prefixed_commands import prefixed_command, PrefixedContext
+from interactions.ext import prefixed_commands
+from interactions.ext.prefixed_commands import prefixed_command, PrefixedContext
 from dotenv import load_dotenv
 
 '''
@@ -62,14 +62,12 @@ client = interactions.Client(
     intents=interactions.Intents.ALL,
 )
 
-'''
 prefixed_commands.setup(client, default_prefix="!")
 
-@prefixed_command(name="load")
-async def cmd_internal_load(ctx: PrefixedContext, module: str):
-    client.reload_extension(f"extensions.{module}.main")
-    await ctx.reply(f"Loaded extensions.{module}.main")
-'''
+@prefixed_command(name="reboot")
+async def cmd_internal_reboot(ctx: PrefixedContext):
+    await ctx.reply(f"Rebooting the bot...")
+    os.execv(sys.executable, ['python'] + sys.argv)
 
 @interactions.listen()
 async def on_startup():
