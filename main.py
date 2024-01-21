@@ -62,9 +62,23 @@ client = interactions.Client(
     intents=interactions.Intents.ALL,
 )
 
+'''
+Check the permission to run the key module command
+The ROLE_ID needs to be set in .env file
+'''
+async def my_check(ctx: interactions.BaseContext):
+    res: bool = await interactions.is_owner()(ctx)
+    if os.environ.get("ROLE_ID"):
+        r: bool = ctx.author.has_role(os.environ.get("ROLE_ID"))
+        # print(os.environ.get("ROLE_ID"), type(os.environ.get("ROLE_ID")), r, ctx.author.roles)
+    else:
+        r: bool = False
+    return res or r
+
 prefixed_commands.setup(client, default_prefix="!")
 
 @prefixed_command(name="reboot")
+@interactions.check(my_check)
 async def cmd_internal_reboot(ctx: PrefixedContext):
     await ctx.reply(f"Rebooting the bot...")
     os.execv(sys.executable, ['python'] + sys.argv)
@@ -93,6 +107,7 @@ CC-BY-SA-3.0: https://stackoverflow.com/a/14050282
     required = True,
     opt_type = interactions.OptionType.STRING
 )
+@interactions.check(my_check)
 async def kernel_module_load(ctx: interactions.SlashContext, url: str):
     logger.debug("Kernel module load START")
     ic()
@@ -170,8 +185,9 @@ Unload the module from kernel
 '''
 @kernel_module.subcommand("unload", sub_cmd_description="Unload module")
 @kernel_module_option_module()
+@interactions.check(my_check)
 async def kernel_module_unload(ctx: interactions.SlashContext, module: str):
-    await ctx.defer(ephemeral=True)
+    await ctx.defer()
     try:
         client.unload_extension(f"extensions.{module}.main")
         moduleutil.gitrepo_delete(module)
@@ -204,6 +220,7 @@ Update the loaded module in kernel
 '''
 @kernel_module.subcommand("update", sub_cmd_description="Update the module")
 @kernel_module_option_module()
+@interactions.check(my_check)
 async def kernel_module_update(ctx: interactions.SlashContext, module: str):
     await ctx.defer()
     # Check whether the module exists in the folder
