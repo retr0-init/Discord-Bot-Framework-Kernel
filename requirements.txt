@@ -3,4 +3,4 @@ python-dotenv>=0.19.1
 jurigged
 pygit2>=1.13.3
 icecream
-aiofile
+aiofiles
