@@ -10,7 +10,8 @@
 
 ## 如何运行
 1. 安装python3. 它的版本应该至少为`3.10`.
-2. 在正确配置的python环境下运行`./run.sh`.
+2. 安装[firejail](https://github.com/netblue30/firejail).
+3. 在正确配置的python环境下运行`./run.sh`.
 
 # Discord Bot Framework Kernel
 ![doc/discord-bot-framework-en.drawio.png](https://github.com/retr0-init/discord-bot-framework-doc/blob/master/discord-bot-framework-en.drawio.png)
@@ -21,4 +22,5 @@ The module template is here (TODO). Please follow the template guidelines as sta
 
 ## How to run it
 1. Install python3, whose version is `>=3.10`.
-2. Run `./run.sh` under the correct python environment.
+2. Install [firejail](https://github.com/netblue30/firejail).
+3. Run `./run.sh` under the correct python environment.
