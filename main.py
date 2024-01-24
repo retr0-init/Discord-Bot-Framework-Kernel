@@ -79,6 +79,8 @@ prefixed_commands.setup(client, default_prefix="!")
 
 @prefixed_command(name="reboot")
 @interactions.check(my_check)
+@interactions.max_concurrency(interactions.Buckets.GUILD, 1)
+@interactions.cooldown(interactions.Buckets.GUILD, 2, 60)
 async def cmd_internal_reboot(ctx: PrefixedContext):
     await ctx.reply(f"Rebooting the bot...")
     os.execv(sys.executable, ['python'] + sys.argv)
@@ -108,6 +110,7 @@ CC-BY-SA-3.0: https://stackoverflow.com/a/14050282
     opt_type = interactions.OptionType.STRING
 )
 @interactions.check(my_check)
+@interactions.cooldown(interactions.Buckets.GUILD, 2, 60)
 async def kernel_module_load(ctx: interactions.SlashContext, url: str):
     logger.debug("Kernel module load START")
     ic()
@@ -186,6 +189,7 @@ Unload the module from kernel
 @kernel_module.subcommand("unload", sub_cmd_description="Unload module")
 @kernel_module_option_module()
 @interactions.check(my_check)
+@interactions.cooldown(interactions.Buckets.GUILD, 2, 60)
 async def kernel_module_unload(ctx: interactions.SlashContext, module: str):
     await ctx.defer()
     try:
@@ -221,6 +225,7 @@ Update the loaded module in kernel
 @kernel_module.subcommand("update", sub_cmd_description="Update the module")
 @kernel_module_option_module()
 @interactions.check(my_check)
+@interactions.cooldown(interactions.Buckets.GUILD, 2, 60)
 async def kernel_module_update(ctx: interactions.SlashContext, module: str):
     await ctx.defer()
     # Check whether the module exists in the folder
@@ -284,16 +289,25 @@ async def kernel_module_option_module_autocomplete(ctx: interactions.Autocomplet
     )
 
 
-
+# Global variable to determine whether the download is in progress
+gDownloading: bool = False
 '''
 Download the running code in tarball (.tar.gz)
 '''
 @kernel_review.subcommand("download", sub_cmd_description="Download current running code in tarball")
+@interactions.max_concurrency(interactions.Buckets.GUILD, 2)
+@interactions.cooldown(interactions.Buckets.GUILD, 2, 60)
 async def kernel_review_download(ctx: interactions.SlashContext):
+    global gDownloading
+    if gDownloading:
+        await ctx.send("There is already a download task running! Please run it later :)", ephemeral=True)
+        return
+    gDownloading = True
     await ctx.defer()
     with tempfile.NamedTemporaryFile(suffix=".tar.gz", prefix="Discord-Bot-Framework_") as f:
         compress_temp(f.name)
         await ctx.send("Current code that is running as attached", file=f.name)
+    gDownloading = False
 ################ Kernel functions END ################
 
 
