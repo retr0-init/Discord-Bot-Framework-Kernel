@@ -166,7 +166,7 @@ def gitrepo_delete(name: str) -> None:
         return
     if shutil.rmtree.avoids_symlink_attacks:
         print("This system is prone to symlink attacks. Be aware!")
-    piprequirements_operate(f"{path}/requirements.txt", install=False)
+    # piprequirements_operate(f"{path}/requirements.txt", install=False)
     try:
         shutil.rmtree(path)
     except OSError as e:
