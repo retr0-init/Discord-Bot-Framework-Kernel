@@ -17,6 +17,8 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
+from dataclasses import dataclass
+import datetime
 import pygit2
 import shutil
 import os
@@ -215,3 +217,42 @@ def piprequirements_operate(file_path: str, install: bool = True) -> bool:
     install_str: list[str] = ["install", "-U"] if install else ["uninstall", "-y"]
     ret: int = pip_main([*install_str, "-r", file_path])
     return True if ret == 0 else False
+
+'''
+Git Repository Information Data Class
+'''
+@dataclass
+class GitRepoInfo:
+    __slots__ = ["modifications", "remote_url", "current_commit", "CHANGELOG"]
+    modifications: int              # Number of files modified
+    remote_url: str                 # The remote URL of the repo
+    current_commit: pygit2.Commit   # Current commit hash of the repo
+    CHANGELOG: str                  # The content of the CHANGELOG
+
+    def get_UTC_time(self) -> str:
+        dt = datetime.datetime.fromtimestamp(self.current_commit.commit_time + self.current_commit.committer.offset * 60, datetime.timezone.utc)
+        return dt.strftime("%Z %Y-%m-%dT%H:%M:%S.%f")
+
+'''
+Get the information of the Git repo
+
+@param name: str            The module name
+@return info: GitRepoInfo   The Git repository information
+        valid: bool         Whether the repo name is valid
+'''
+def gitrepo_info(name: str) -> tuple[GitRepoInfo, bool]:
+    path: str = f"{os.getcwd()}/extensions/{name}"
+    repo_path: str = pygit2.discover_repository(path)
+    if repo_path == pygit2.discover_repository(os.getcwd()):
+        # Not a git repo
+        ic()
+        return None, False
+    repo: pygit2.Repository = pygit2.Repository(
+        repo_path
+    )
+    commit: pygit2.Commit = repo[repo.head.target]
+
+    with open(f"{path}/CHANGELOG") as f:
+        content: str = f.read()
+
+    return GitRepoInfo(repo.diff('HEAD').stats.files_changed, repo.remotes["origin"].url, commit, content), True
