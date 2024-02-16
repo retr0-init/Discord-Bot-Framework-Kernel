@@ -357,6 +357,30 @@ async def kernel_review_download(ctx: interactions.SlashContext):
         compress_temp(f.name)
         await ctx.send("Current code that is running as attached", file=f.name)
     gDownloading = False
+
+'''
+Show Kernel information
+'''
+@kernel_review.subcommand("info", sub_cmd_description="Show the Kernel information")
+async def kernel_review_info(ctx: interactions.SlashContext):
+    info = moduleutil.kernel_gitrepo_info()
+    embed: interactions.Embed = interactions.Embed(
+        title = "Kernel Information",
+        description = f'''### Discord-Bot-Framework-Kernel
+### No Local Changes? {'❌' if info.modifications > 0 else '✅'}
+
+### Current commit
+- ID: `{info.current_commit.id}`
+- Time: `{info.get_UTC_time()}`
+
+### Remote HEAD commit
+- ID: `{info.remote_head_commit.id}`
+- Time: `{info.get_remote_UTC_time()}`
+''',
+        color = interactions.Color.from_rgb(255, 0, 0) if info.modifications > 0 else interactions.Color.from_rgb(0, 255, 0),
+        url = info.remote_url
+    )
+    await ctx.send(embed=embed)
 ################ Kernel functions END ################
 
 
