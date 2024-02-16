@@ -277,12 +277,42 @@ async def kernel_module_update(ctx: interactions.SlashContext, module: str):
         cL: str = "CHANGELOG not provided!"
     await ctx.send(f"Module `{module}` updated!\nCHANGELOG:\n```\n{cl}\n```", ephemeral=False)
 
+'''
+Show the module information
+'''
+@kernel_module.subcommand("info", sub_cmd_description="Show the module info")
+@kernel_module_option_module()
+async def kernel_module_info(ctx: interactions.SlashContext, module: str):
+    await ctx.defer()
+    info, valid = moduleutil.gitrepo_info(module)
+    if not valid:
+        await ctx.send("The module does not exist!", ephemeral=True)
+        return
+    embed: interactions.Embed = interactions.Embed(
+        title = "Module Information",
+        description = f'''### {module}
+### No Local Changes? {'❌' if info.modifications > 0 else '✅'}
+
+### Current commit
+- ID: ``{info.current_commit.id}
+- Time: `{info.get_UTC_time()}`
+
+### CHANGELOG
+```
+{info.CHANGELOG}
+```
+''',
+        color = interactions.Color.from_rgb(255, 0, 0) if info.modifications > 0 else interactions.Color.from_rgb(0, 255, 0),
+        url = info.remote_url
+    )
+    await ctx.send(embed=embed)
 
 '''
 Autocomplete function for the kernel module unloading and update commands
 '''
 @kernel_module_unload.autocomplete("module")
 @kernel_module_update.autocomplete("module")
+@kernel_module_info.autocomplete("module")
 async def kernel_module_option_module_autocomplete(ctx: interactions.AutocompleteContext):
     module_option_input: str = ctx.input_text
     modules: list[str] = [
