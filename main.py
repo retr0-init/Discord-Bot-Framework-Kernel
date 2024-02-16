@@ -294,8 +294,12 @@ async def kernel_module_info(ctx: interactions.SlashContext, module: str):
 ### No Local Changes? {'❌' if info.modifications > 0 else '✅'}
 
 ### Current commit
-- ID: ``{info.current_commit.id}
+- ID: `{info.current_commit.id}`
 - Time: `{info.get_UTC_time()}`
+
+### Remote HEAD commit
+- ID: `{info.remote_head_commit.id}`
+- Time: `{info.get_remote_UTC_time()}`
 
 ### CHANGELOG
 ```

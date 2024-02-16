@@ -223,14 +223,19 @@ Git Repository Information Data Class
 '''
 @dataclass
 class GitRepoInfo:
-    __slots__ = ["modifications", "remote_url", "current_commit", "CHANGELOG"]
-    modifications: int              # Number of files modified
-    remote_url: str                 # The remote URL of the repo
-    current_commit: pygit2.Commit   # Current commit hash of the repo
-    CHANGELOG: str                  # The content of the CHANGELOG
+    __slots__ = ["modifications", "remote_url", "current_commit", "remote_head_commit", "CHANGELOG"]
+    modifications: int                  # Number of files modified
+    remote_url: str                     # The remote URL of the repo
+    current_commit: pygit2.Commit       # Current commit hash of the repo
+    remote_head_commit: pygit2.Commit   # Remote Head commit hash of the repo
+    CHANGELOG: str                      # The content of the CHANGELOG
 
     def get_UTC_time(self) -> str:
         dt = datetime.datetime.fromtimestamp(self.current_commit.commit_time + self.current_commit.committer.offset * 60, datetime.timezone.utc)
+        return dt.strftime("%Z %Y-%m-%dT%H:%M:%S.%f")
+        
+    def get_remote_UTC_time(self) -> str:
+        dt = datetime.datetime.fromtimestamp(self.remote_head_commit.commit_time + self.remote_head_commit.committer.offset * 60, datetime.timezone.utc)
         return dt.strftime("%Z %Y-%m-%dT%H:%M:%S.%f")
 
 '''
@@ -251,8 +256,9 @@ def gitrepo_info(name: str) -> tuple[GitRepoInfo, bool]:
         repo_path
     )
     commit: pygit2.Commit = repo[repo.head.target]
+    
 
     with open(f"{path}/CHANGELOG") as f:
         content: str = f.read()
 
-    return GitRepoInfo(repo.diff('HEAD').stats.files_changed, repo.remotes["origin"].url, commit, content), True
+    return GitRepoInfo(repo.diff("origin/HEAD").stats.files_changed, repo.remotes["origin"].url, commit, repo.revparse("origin/HEAD").from_object, content), True
