@@ -239,7 +239,7 @@ class GitRepoInfo:
         return dt.strftime("%Z %Y-%m-%dT%H:%M:%S.%f")
 
 '''
-Get the information of the Git repo
+Get the information of the Git repo of the module
 
 @param name: str            The module name
 @return info: GitRepoInfo   The Git repository information
@@ -257,8 +257,20 @@ def gitrepo_info(name: str) -> tuple[GitRepoInfo, bool]:
     )
     commit: pygit2.Commit = repo[repo.head.target]
     
-
     with open(f"{path}/CHANGELOG") as f:
         content: str = f.read()
 
-    return GitRepoInfo(repo.diff("origin/HEAD").stats.files_changed, repo.remotes["origin"].url, commit, repo.revparse("origin/HEAD").from_object, content), True
+    return GitRepoInfo(repo.diff("origin/master").stats.files_changed, repo.remotes["origin"].url, commit, repo.revparse("origin/master").from_object, content), True
+
+'''
+Get the information of the Kernel Git repo
+
+@return info: GitRepoInfo   The Git repository information
+'''
+def kernel_gitrepo_info() -> GitRepoInfo:
+    repo = pygit2.Repository(
+        pygit2.discover_repository(os.getcwd())
+    )
+    commit: pygit2.Commit = repo[repo.head.target]
+
+    return GitRepoInfo(repo.diff("origin/master").stats.files_changed, repo.remotes["origin"].url, commit, repo.revparse("origin/master").from_object, "")
