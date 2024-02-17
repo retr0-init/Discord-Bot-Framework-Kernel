@@ -98,7 +98,9 @@ prefixed_commands.setup(client, default_prefix="!")
 @interactions.cooldown(interactions.Buckets.GUILD, 2, 60)
 async def cmd_internal_reboot(ctx: PrefixedContext):
     await ctx.reply(f"Rebooting the bot...")
-    os.execv(sys.executable, ['python'] + sys.argv)
+    with open("kernel_flag/reboot", 'a') as f:
+        f.write(f"Rebooted at {interactions.Timestamp.now().ctime()}\n")
+    # os.execv(sys.executable, ['python'] + sys.argv)
 
 @interactions.listen()
 async def on_startup():
