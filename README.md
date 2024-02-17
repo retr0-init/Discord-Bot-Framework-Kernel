@@ -11,7 +11,9 @@
 ## 如何运行
 1. 安装python3. 它的版本应该至少为`3.10`.
 2. 安装[firejail](https://github.com/netblue30/firejail).
-3. 在正确配置的python环境下运行`./run.sh`.
+3. 安装[npm](https://github.com/nodesource/distributions?tab=readme-ov-file#using-debian-as-root).
+4. 安装[PM2](https://pm2.keymetrics.io/). `sudo npm install pm2@latest -g`
+4. 运行`pm2_start.sh`
 
 # Discord Bot Framework Kernel
 ![doc/discord-bot-framework-en.drawio.png](https://github.com/retr0-init/discord-bot-framework-doc/blob/master/discord-bot-framework-en.drawio.png)
@@ -23,4 +25,6 @@ The module template is [here](https://github.com/retr0-init/Discord-Bot-Framewor
 ## How to run it
 1. Install python3, whose version is `>=3.10`.
 2. Install [firejail](https://github.com/netblue30/firejail).
-3. Run `./run.sh` under the correct python environment.
+3. Install [npm](https://github.com/nodesource/distributions?tab=readme-ov-file#using-debian-as-root).
+4. Install [PM2](https://pm2.keymetrics.io/). `sudo npm install pm2@latest -g`.
+4. Execute `./pm2_start.sh`.

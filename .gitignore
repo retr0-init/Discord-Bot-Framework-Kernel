@@ -135,3 +135,5 @@ dmypy.json
 
 .bashrc
 .inputrc
+
+*.log
