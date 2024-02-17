@@ -103,26 +103,18 @@ def gitrepo_clone(url: str) -> tuple[str, bool]:
 
 
 '''
-Pull the git repo from remote "master" branch only.
+Pull the kernel git repo from remote "master" branch only.
 Note that this only pull changes, it does NOT merge the changes
  if there are local changes and commits.
 CC-BY-SA-3.0: https://stackoverflow.com/a/27786533
 
-@param name: str        The module name of the repo
 @return err_code: int   Error code (
     0:  Success
-    1:  It is not a git repo
     2:  Git fetch failed
     3:  Not found master branch
 )
 '''
-def gitrepo_pull(name: str) -> int:
-    path: str = f"{os.getcwd()}/extensions/{name}"
-    repo_path: str = pygit2.discover_repository(path)
-    if repo_path == pygit2.discover_repository(os.getcwd()):
-        # Not a git repo
-        ic()
-        return 1
+def base_gitrepo_pull(repo_path: str) -> int:
     repo: pygit2.Repository = pygit2.Repository(
         repo_path
     )
@@ -153,6 +145,31 @@ def gitrepo_pull(name: str) -> int:
         repo.head.set_target(remote_master_id)
     # Success
     return 0
+
+
+'''
+Pull the module git repo from remote "master" branch only.
+Note that this only pull changes, it does NOT merge the changes
+ if there are local changes and commits.
+CC-BY-SA-3.0: https://stackoverflow.com/a/27786533
+
+@param name: str        The module name of the repo
+@return err_code: int   Error code (
+    0:  Success
+    1:  It is not a git repo
+    2:  Git fetch failed
+    3:  Not found master branch
+)
+'''
+def gitrepo_pull(name: str) -> int:
+    path: str = f"{os.getcwd()}/extensions/{name}"
+    repo_path: str = pygit2.discover_repository(path)
+    if repo_path == pygit2.discover_repository(os.getcwd()):
+        # Not a git repo
+        ic()
+        return 1
+    ret: int = base_gitrepo_pull(repo_path)
+    return ret
 
 
 '''
@@ -274,3 +291,23 @@ def kernel_gitrepo_info() -> GitRepoInfo:
     commit: pygit2.Commit = repo[repo.head.target]
 
     return GitRepoInfo(repo.diff("origin/master").stats.files_changed, repo.remotes["origin"].url, commit, repo.revparse("origin/master").from_object, "")
+
+
+'''
+Pull the kernel git repo from remote "master" branch only.
+Note that this only pull changes, it does NOT merge the changes
+ if there are local changes and commits.
+CC-BY-SA-3.0: https://stackoverflow.com/a/27786533
+
+@return err_code: int   Error code (
+    0:  Success
+    2:  Git fetch failed
+    3:  Not found master branch
+)
+'''
+def kernel_gitrepo_pull() -> int:
+    path: str = os.getcwd()
+    repo_path: str = pygit2.discover_repository(path)
+    ret: int = base_gitrepo_pull(repo_path)
+    return ret
+

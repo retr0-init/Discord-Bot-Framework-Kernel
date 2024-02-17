@@ -383,6 +383,32 @@ async def kernel_review_info(ctx: interactions.SlashContext):
         url = info.remote_url
     )
     await ctx.send(embed=embed)
+
+'''
+Update the kernel itself
+'''
+@kernel_review.subcommand("update", sub_cmd_description="Update the kernel")
+@interactions.max_concurrency(interactions.Buckets.GUILD, 1)
+async def kernel_review_update(ctx: interactions.SlashContext):
+    await ctx.defer()
+    # Pull the changes
+    err: int = moduleutil.kernel_gitrepo_pull()
+    # Return if the module is NOT a Git repo or updating failed
+    if err != 0:
+        reason: list[str] = [
+            "Not a git repo",
+            "Remote repo fetch failed",
+            "`master` branch does not exist"
+        ]
+        await ctx.send("Module update failed! The reason is: {}".format(reason[err - 1]), ephemeral=True)
+        return
+    # Install requirements.txt
+    requirements_path: str = f"{os.getcwd()}/requirements.txt"
+    if not os.path.exists(requirements_path):
+        await ctx.send("`requirements.txt` does not exist! No reloading!", ephemeral=True)
+        return
+    moduleutil.piprequirements_operate(requirements_path)
+    await ctx.send("Kernel update complete! Please restart the bot!")
 ################ Kernel functions END ################
 
 

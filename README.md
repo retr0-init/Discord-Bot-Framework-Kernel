@@ -30,4 +30,3 @@ The module template is [here](https://github.com/retr0-init/Discord-Bot-Framewor
 4. Install [PM2](https://pm2.keymetrics.io/). `sudo npm install pm2@latest -g`.
 5. Copy [`dotenv_template.env`](dotenv_template.env) as `.env`. Fill in the environmental variables.
 6. Execute `./pm2_start.sh`.
-KERNEL UPDATE TEST
