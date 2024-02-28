@@ -152,6 +152,7 @@ async def kernel_module_load(ctx: interactions.SlashContext, url: str):
                 logger.warning(f"Module {module} clone failed")
                 await ctx.send(f"The module {module} clone failed!", ephemeral = True)
             else:
+                try:
                 requirements_path: str = os.path.join(os.getcwd(), "extensions", module, "requirements.txt")
                 ic(requirements_path)
                 # Check whether requirements.txt exists in the module repo
@@ -175,7 +176,7 @@ async def kernel_module_load(ctx: interactions.SlashContext, url: str):
                             client.reload_extension(f"extensions.{module}.main")
                             logger.info(f"Loaded extension extensions.{module}.main")
                             await ctx.send(f"Module `extensions.{module}.main` loaded")
-                        except interactions.errors.ExtensionLoadException as e:
+                        except:
                             ic()
                             logger.exception(f"Failed to load extension {module}.", exc_info=e)
                             # Delete the repo
