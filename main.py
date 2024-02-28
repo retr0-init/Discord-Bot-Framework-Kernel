@@ -152,7 +152,6 @@ async def kernel_module_load(ctx: interactions.SlashContext, url: str):
                 logger.warning(f"Module {module} clone failed")
                 await ctx.send(f"The module {module} clone failed!", ephemeral = True)
             else:
-                try:
                 requirements_path: str = os.path.join(os.getcwd(), "extensions", module, "requirements.txt")
                 ic(requirements_path)
                 # Check whether requirements.txt exists in the module repo
