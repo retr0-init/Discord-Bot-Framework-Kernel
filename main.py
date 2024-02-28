@@ -208,15 +208,18 @@ Unload the module from kernel
 @interactions.check(my_check)
 @interactions.cooldown(interactions.Buckets.GUILD, 2, 60)
 async def kernel_module_unload(ctx: interactions.SlashContext, module: str):
-    await ctx.defer()
     try:
         client.unload_extension(f"extensions.{module}.main")
-        moduleutil.gitrepo_delete(module)
         await client.synchronise_interactions(delete_commands=True)
     except:
-        await ctx.send(f"Module {module} either not exists or failed to unload", ephemeral=True)
+        await ctx.send(f"Module {module} failed to unload. It will be deleted.", ephemeral=True)
     else:
         await ctx.send(f"Module {module} unloaded")
+    finally:
+        try:
+            moduleutil.gitrepo_delete(module)
+        except:
+            print("The module cannot be deleted")
 
 
 '''
