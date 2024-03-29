@@ -26,8 +26,6 @@ import pathlib
 import tempfile
 
 import interactions
-from interactions.ext import prefixed_commands
-from interactions.ext.prefixed_commands import prefixed_command, PrefixedContext
 from dotenv import load_dotenv
 
 '''
@@ -90,18 +88,6 @@ async def my_check(ctx: interactions.BaseContext):
         r: bool = False
     return res or r
 
-prefixed_commands.setup(client, default_prefix="!")
-
-@prefixed_command(name="reboot")
-@interactions.check(my_check)
-@interactions.max_concurrency(interactions.Buckets.GUILD, 1)
-@interactions.cooldown(interactions.Buckets.GUILD, 2, 60)
-async def cmd_internal_reboot(ctx: PrefixedContext):
-    await ctx.reply(f"Rebooting the bot...")
-    with open("kernel_flag/reboot", 'a') as f:
-        f.write(f"Rebooted at {interactions.Timestamp.now().ctime()}\n")
-    # os.execv(sys.executable, ['python'] + sys.argv)
-
 @interactions.listen()
 async def on_startup():
     """Called when the bot starts"""
@@ -113,6 +99,16 @@ async def on_startup():
 kernel_base: interactions.SlashCommand = interactions.SlashCommand(name="kernel", description="Bot Framework Kernel Commands")
 kernel_module: interactions.SlashCommand = kernel_base.group(name="module", description="Bot Framework Kernel Module Commands")
 kernel_review: interactions.SlashCommand = kernel_base.group(name="review", description="Bot Framework Kernel Review Commands")
+
+@kernel_review.subcommand("reboot", sub_cmd_description="Reboot the rebot")
+@interactions.check(my_check)
+@interactions.max_concurrency(interactions.Buckets.GUILD, 1)
+@interactions.cooldown(interactions.Buckets.GUILD, 2, 60)
+async def cmd_internal_reboot(ctx: interactions.SlashContext):
+    await ctx.send(f"Rebooting the bot...")
+    with open("kernel_flag/reboot", 'a') as f:
+        f.write(f"Rebooted at {interactions.Timestamp.now().ctime()}\n")
+    # os.execv(sys.executable, ['python'] + sys.argv)
 
 '''
 Load the module from remote HTTPS Git Repository
@@ -415,27 +411,30 @@ async def kernel_review_update(ctx: interactions.SlashContext):
 ################ Kernel functions END ################
 
 
-# get all python files in "extensions" folder
-extensions = [
-    f"extensions.{f[:-3]}"
-    for f in os.listdir("extensions")
-    if f.endswith(".py") and not f.startswith("_")
-] + [
-    f"extensions.{i}.main"
-    for i in os.listdir("extensions")
-    if os.path.isdir(f"extensions/{i}") and i != "__pycache__" and moduleutil.is_gitrepo(i)
-]
+async def main_main():
+    # get all python files in "extensions" folder
+    extensions = [
+        f"extensions.{f[:-3]}"
+        for f in os.listdir("extensions")
+        if f.endswith(".py") and not f.startswith("_")
+    ] + [
+        f"extensions.{i}.main"
+        for i in os.listdir("extensions")
+        if os.path.isdir(f"extensions/{i}") and i != "__pycache__" and moduleutil.is_gitrepo(i)
+    ]
 
-try:
-    client.load_extension("interactions.ext.jurigged")
-except interactions.errors.ExtensionLoadException as e:
-    logger.exception(f"Failed to load extension {extension}.", exc_info=e)
-
-for extension in extensions:
     try:
-        client.load_extension(extension)
-        logger.info(f"Loaded extension {extension}")
+        client.load_extension("interactions.ext.jurigged")
     except interactions.errors.ExtensionLoadException as e:
         logger.exception(f"Failed to load extension {extension}.", exc_info=e)
 
-client.start()
+    for extension in extensions:
+        try:
+            client.load_extension(extension)
+            logger.info(f"Loaded extension {extension}")
+        except interactions.errors.ExtensionLoadException as e:
+            logger.exception(f"Failed to load extension {extension}.", exc_info=e)
+
+    await client.astart()
+
+asyncio.run(main_main())
