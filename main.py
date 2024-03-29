@@ -128,18 +128,20 @@ async def kernel_module_load(ctx: interactions.SlashContext, url: str):
     logger.debug("Kernel module load START")
     ic()
     # Defer the context as the following actions may cost more than 3 seconds
-    await ctx.defer(ephemeral = True)
+    msg: interactions.Message = await ctx.send("Loading new module...")
     ic()
     # Parse and validate the Git repository url
     git_url, parsed, validated = moduleutil.giturl_parse(url)
     if not validated:
         ic()
         await ctx.send("The loaded module is not an HTTPS Git Repo!", ephemeral = True)
+        await msg.delete()
     else:
         # Check whether the module extension folder exists
         if os.path.isdir(os.path.join(os.getcwd(), "extensions", parsed)):
             ic()
             await ctx.send(f"The module {parsed} has been loaded!", ephemeral = True)
+            await msg.delete()
         else:
             # Clone the git repo
             module, clone_validated = moduleutil.gitrepo_clone(git_url)
@@ -147,6 +149,7 @@ async def kernel_module_load(ctx: interactions.SlashContext, url: str):
                 ic()
                 logger.warning(f"Module {module} clone failed")
                 await ctx.send(f"The module {module} clone failed!", ephemeral = True)
+                await msg.delete()
             else:
                 requirements_path: str = os.path.join(os.getcwd(), "extensions", module, "requirements.txt")
                 ic(requirements_path)
@@ -157,6 +160,7 @@ async def kernel_module_load(ctx: interactions.SlashContext, url: str):
                     moduleutil.gitrepo_delete(module)
                     logger.warning(f"Module {module} requirements.txt does not exist.")
                     await ctx.send(f"The module {module} does not have `requirements.txt`", ephemeral = True)
+                    await msg.delete()
                 else:
                     # pip install -r requirements.txt
                     success: bool = moduleutil.piprequirements_operate(requirements_path)
@@ -164,19 +168,21 @@ async def kernel_module_load(ctx: interactions.SlashContext, url: str):
                         ic()
                         logger.warning(f"Module {module} requirements.txt install failed")
                         await ctx.send(f"Module {module} `requirements.txt` install fail.", ephemeral = True)
+                        await msg.delete()
                     else:
                         # Load the module into the kernel
                         try:
                             ic()
                             client.reload_extension(f"extensions.{module}.main")
                             logger.info(f"Loaded extension extensions.{module}.main")
-                            await ctx.send(f"Module `extensions.{module}.main` loaded")
-                        except:
+                            await msg.edit(content=f"Module `extensions.{module}.main` loaded")
+                        except Exception as e:
                             ic()
                             logger.exception(f"Failed to load extension {module}.", exc_info=e)
                             # Delete the repo
                             moduleutil.gitrepo_delete(module)
                             await ctx.send(f"Module {module} load fail! The repo is removed.", ephemeral = True)
+                            await msg.delete()
     ic()
     logger.debug("Kernel module load END")
 
