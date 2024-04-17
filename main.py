@@ -179,6 +179,7 @@ async def kernel_module_load(ctx: interactions.SlashContext, url: str):
                         except Exception as e:
                             ic()
                             logger.exception(f"Failed to load extension {module}.", exc_info=e)
+                            await client.synchronise_interactions(delete_commands=True)
                             # Delete the repo
                             moduleutil.gitrepo_delete(module)
                             await ctx.send(f"Module {module} load fail! The repo is removed.", ephemeral = True)
