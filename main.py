@@ -140,9 +140,11 @@ async def _dm_key_members(
     for key_member in key_members:
         chan_dm = await key_member.fetch_dm()
         try:
-            dm_msg.append(await chan_dm.send(content=msg, embeds=embeds, components=components))
+            _msg_to_send: interactions.Message = await chan_dm.send(content=msg, embeds=embeds, components=components)
         except (EmptyMessageException, NotFound, Forbidden) as e:
             logger.error(f"DM failed! Error as {e}")
+        else:
+            dm_msg.append(_msg_to_send)
     if custom_id is not None:
         dm_messages[custom_id] = dm_msg
 
@@ -165,6 +167,7 @@ async def _dm_key_members_delete(custom_id: str) -> None:
 @interactions.max_concurrency(interactions.Buckets.GUILD, 1)
 @interactions.cooldown(interactions.Buckets.GUILD, 2, 60)
 async def cmd_internal_reboot(ctx: interactions.SlashContext):
+    await ctx.defer()
     executor: interactions.Member = ctx.author
     await _dm_key_members(
         ctx,
@@ -197,6 +200,7 @@ CC-BY-SA-3.0: https://stackoverflow.com/a/14050282
 @interactions.check(my_check)
 @interactions.cooldown(interactions.Buckets.GUILD, 2, 60)
 async def kernel_module_load(ctx: interactions.SlashContext, url: str):
+    await ctx.defer()
     executor: interactions.Member = ctx.author
     await _dm_key_members(
         ctx,
@@ -296,6 +300,7 @@ Unload the module from kernel
 @interactions.check(my_check)
 @interactions.cooldown(interactions.Buckets.GUILD, 2, 60)
 async def kernel_module_unload(ctx: interactions.SlashContext, module: str):
+    await ctx.defer()
     executor: interactions.Member = ctx.author
     info, _ = moduleutil.gitrepo_info(module)
     await _dm_key_members(
@@ -349,6 +354,7 @@ Update the loaded module in kernel
 @interactions.check(my_check)
 @interactions.cooldown(interactions.Buckets.GUILD, 2, 60)
 async def kernel_module_update(ctx: interactions.SlashContext, module: str):
+    await ctx.defer()
     executor: interactions.Member = ctx.author
     info, _ = moduleutil.gitrepo_info(module)
     await _dm_key_members(
@@ -363,7 +369,6 @@ async def kernel_module_update(ctx: interactions.SlashContext, module: str):
             url=info.remote_url
         )]
     )
-    await ctx.defer()
     # Check whether the module exists in the folder
     if not os.path.isdir(f"extensions/{module}"):
         await ctx.send("The extension {module} does not exist!", ephemeral=True)
