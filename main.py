@@ -26,6 +26,17 @@ import pathlib
 import tempfile
 
 import interactions
+from interactions.client.errors import (
+    MessageException,
+    NotFound,
+    RateLimited,
+    EmptyMessageException,
+    InteractionException,
+    InteractionMissingAccess,
+    ExtensionLoadException,
+    ExtensionNotFound,
+    Forbidden
+)
 from dotenv import load_dotenv
 
 '''
@@ -34,7 +45,7 @@ The DEV_GUILD must be set to a specific guild_id
 from config import DEBUG, DEV_GUILD
 from src import logutil, compressutil, moduleutil
 
-from typing import Union
+from typing import Union, Optional
 
 try:
     from icecream import ic
@@ -100,11 +111,72 @@ kernel_base: interactions.SlashCommand = interactions.SlashCommand(name="kernel"
 kernel_module: interactions.SlashCommand = kernel_base.group(name="module", description="Bot Framework Kernel Module Commands")
 kernel_review: interactions.SlashCommand = kernel_base.group(name="review", description="Bot Framework Kernel Review Commands")
 
+dm_messages: dict[str, list[interactions.Message]] = dict()
+
+async def _get_key_members(ctx: interactions.SlashContext) -> list[Union[interactions.Member, interactions.User]]:
+    """
+    Get the list of key members for this bot
+    """
+    role: Optional[interactions.Role] = await ctx.guild.fetch_role(os.environ.get("ROLE_ID")) if os.environ.get("ROLE_ID") else None
+    key_members: list[Union[interactions.Member, interactions.User]] = [] if role is None else role.members
+    if client.owner not in key_members:
+        key_members.append(client.owner)
+    return key_members
+
+async def _dm_key_members(
+    ctx: interactions.SlashContext,
+    msg: Optional[str] = None,
+    *,
+    embeds: Optional[list[interactions.Embed]] = None,
+    components: Optional[list[interactions.ComponentType]] = None,
+    custom_id: Optional[str] = None
+    ) -> None:
+    """
+    Direct message all key members defined by `ROLE_ID` in .env file and bot owner.
+    custom_id is used to delete or edit the message later. If not specified, the DM message is not deletable until some components triggered.
+    """
+    key_members: list[Union[interactions.Member, interactions.User]] = await _get_key_members(ctx)
+    dm_msg: list[interactions.Message] = []
+    for key_member in key_members:
+        chan_dm = await key_member.fetch_dm()
+        try:
+            dm_msg.append(await chan_dm.send(content=msg, embeds=embeds, components=components))
+        except (EmptyMessageException, NotFound, Forbidden) as e:
+            logger.error(f"DM failed! Error as {e}")
+    if custom_id is not None:
+        dm_messages[custom_id] = dm_msg
+
+async def _dm_key_members_delete(custom_id: str) -> None:
+    """
+    Delete the direct message sent to key members identified by the custom_id
+    """
+    if custom_id not in dm_messages:
+        logger.error(f"The direct message indexed by custom_id {custom_id} not exist.")
+        return
+    dm_msg: list[interactions.Message] = dm_messages[custom_id]
+    for msg in dm_msg:
+        try:
+            await msg.delete()
+        except (MessageException, NotFound, Forbidden) as e:
+            logger.error(f"The direct message has been deleted. Or the other error: {e}")
+
 @kernel_review.subcommand("reboot", sub_cmd_description="Reboot the rebot")
 @interactions.check(my_check)
 @interactions.max_concurrency(interactions.Buckets.GUILD, 1)
 @interactions.cooldown(interactions.Buckets.GUILD, 2, 60)
 async def cmd_internal_reboot(ctx: interactions.SlashContext):
+    executor: interactions.Member = ctx.author
+    await _dm_key_members(
+        ctx,
+        embeds=[interactions.Embed(
+            title="Bot rebooted",
+            description=f"{executor.display_name} [{executor.mention}] tries to reboot the bot",
+            color=interactions.Colour.from_rgb(255, 255, 0),
+            author=interactions.EmbedAuthor(name=executor.display_name, icon_url=executor.avatar_url),
+            footer=interactions.EmbedFooter(text=client.user.display_name, icon_url=client.user.avatar_url),
+            timestamp=interactions.Timestamp.now()
+        )]
+    )
     await ctx.send(f"Rebooting the bot...")
     with open("kernel_flag/reboot", 'a') as f:
         f.write(f"Rebooted at {interactions.Timestamp.now().ctime()}\n")
@@ -125,6 +197,19 @@ CC-BY-SA-3.0: https://stackoverflow.com/a/14050282
 @interactions.check(my_check)
 @interactions.cooldown(interactions.Buckets.GUILD, 2, 60)
 async def kernel_module_load(ctx: interactions.SlashContext, url: str):
+    executor: interactions.Member = ctx.author
+    await _dm_key_members(
+        ctx,
+        embeds=[interactions.Embed(
+            title="Module Load",
+            description=f"{executor.display_name} [{executor.mention}] tries to load this module {url}",
+            color=interactions.Colour.from_rgb(255, 0, 0),
+            author=interactions.EmbedAuthor(name=executor.display_name, icon_url=executor.avatar_url),
+            footer=interactions.EmbedFooter(text=client.user.display_name, icon_url=client.user.avatar_url),
+            url=url,
+            timestamp=interactions.Timestamp.now()
+        )]
+    )
     logger.debug("Kernel module load START")
     ic()
     # Defer the context as the following actions may cost more than 3 seconds
@@ -211,6 +296,20 @@ Unload the module from kernel
 @interactions.check(my_check)
 @interactions.cooldown(interactions.Buckets.GUILD, 2, 60)
 async def kernel_module_unload(ctx: interactions.SlashContext, module: str):
+    executor: interactions.Member = ctx.author
+    info, _ = moduleutil.gitrepo_info(module)
+    await _dm_key_members(
+        ctx,
+        embeds=[interactions.Embed(
+            title="Module Unload",
+            description=f"{executor.display_name} [{executor.mention}] tries to unload the module {module}\nIt's at `{info.current_commit.id}` from {info.remote_url}",
+            color=interactions.Colour.from_rgb(255, 0, 0),
+            author=interactions.EmbedAuthor(name=executor.display_name, icon_url=executor.avatar_url),
+            footer=interactions.EmbedFooter(text=client.user.display_name, icon_url=client.user.avatar_url),
+            timestamp=interactions.Timestamp.now(),
+            url=info.remote_url
+        )]
+    )
     try:
         client.unload_extension(f"extensions.{module}.main")
         await client.synchronise_interactions(delete_commands=True)
@@ -250,6 +349,20 @@ Update the loaded module in kernel
 @interactions.check(my_check)
 @interactions.cooldown(interactions.Buckets.GUILD, 2, 60)
 async def kernel_module_update(ctx: interactions.SlashContext, module: str):
+    executor: interactions.Member = ctx.author
+    info, _ = moduleutil.gitrepo_info(module)
+    await _dm_key_members(
+        ctx,
+        embeds=[interactions.Embed(
+            title="Module update",
+            description=f"{executor.display_name} [{executor.mention}] tries to update the module {info.remote_url} from `{info.current_commit.id}` to `{info.remote_head_commit.id}`\nIt's from {info.remote_url}",
+            color=interactions.Colour.from_rgb(255, 255, 0),
+            author=interactions.EmbedAuthor(name=executor.display_name, icon_url=executor.avatar_url),
+            footer=interactions.EmbedFooter(text=client.user.display_name, icon_url=client.user.avatar_url),
+            timestamp=interactions.Timestamp.now(),
+            url=info.remote_url
+        )]
+    )
     await ctx.defer()
     # Check whether the module exists in the folder
     if not os.path.isdir(f"extensions/{module}"):
