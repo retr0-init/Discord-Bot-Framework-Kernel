@@ -200,6 +200,11 @@ CC-BY-SA-3.0: https://stackoverflow.com/a/14050282
 @interactions.check(my_check)
 @interactions.cooldown(interactions.Buckets.GUILD, 2, 60)
 async def kernel_module_load(ctx: interactions.SlashContext, url: str):
+    async def _delete_message(mesg: interactions.Message) -> None:
+        try:
+            await mesg.delete()
+        except (MessageException, NotFound, Forbidden) as e:
+            logger.warn(f"The message cannot be deleted. See error here: {e}")
     await ctx.defer()
     executor: interactions.Member = ctx.author
     await _dm_key_members(
@@ -224,13 +229,13 @@ async def kernel_module_load(ctx: interactions.SlashContext, url: str):
     if not validated:
         ic()
         await ctx.send("The loaded module is not an HTTPS Git Repo!", ephemeral = True)
-        await msg.delete()
+        await _delete_message(msg)
     else:
         # Check whether the module extension folder exists
         if os.path.isdir(os.path.join(os.getcwd(), "extensions", parsed)):
             ic()
             await ctx.send(f"The module {parsed} has been loaded!", ephemeral = True)
-            await msg.delete()
+            await _delete_message(msg)
         else:
             # Clone the git repo
             module, clone_validated = moduleutil.gitrepo_clone(git_url)
@@ -238,7 +243,7 @@ async def kernel_module_load(ctx: interactions.SlashContext, url: str):
                 ic()
                 logger.warning(f"Module {module} clone failed")
                 await ctx.send(f"The module {module} clone failed!", ephemeral = True)
-                await msg.delete()
+                await _delete_message(msg)
             else:
                 requirements_path: str = os.path.join(os.getcwd(), "extensions", module, "requirements.txt")
                 ic(requirements_path)
@@ -249,7 +254,7 @@ async def kernel_module_load(ctx: interactions.SlashContext, url: str):
                     moduleutil.gitrepo_delete(module)
                     logger.warning(f"Module {module} requirements.txt does not exist.")
                     await ctx.send(f"The module {module} does not have `requirements.txt`", ephemeral = True)
-                    await msg.delete()
+                    await _delete_message(msg)
                 else:
                     # pip install -r requirements.txt
                     success: bool = moduleutil.piprequirements_operate(requirements_path)
@@ -257,14 +262,18 @@ async def kernel_module_load(ctx: interactions.SlashContext, url: str):
                         ic()
                         logger.warning(f"Module {module} requirements.txt install failed")
                         await ctx.send(f"Module {module} `requirements.txt` install fail.", ephemeral = True)
-                        await msg.delete()
+                        await _delete_message(msg)
                     else:
                         # Load the module into the kernel
                         try:
                             ic()
                             client.reload_extension(f"extensions.{module}.main")
                             logger.info(f"Loaded extension extensions.{module}.main")
-                            await msg.edit(content=f"Module `extensions.{module}.main` loaded")
+                            try:
+                                await msg.edit(content=f"Module `extensions.{module}.main` loaded")
+                            except interactions.errors.Forbidden:
+                                logger.warn("The bot missing permissions to edit the message")
+                                await ctx.send(content=f"Module `extensions.{module}.main` loaded")
                         except Exception as e:
                             ic()
                             logger.exception(f"Failed to load extension {module}.", exc_info=e)
@@ -272,7 +281,7 @@ async def kernel_module_load(ctx: interactions.SlashContext, url: str):
                             # Delete the repo
                             moduleutil.gitrepo_delete(module)
                             await ctx.send(f"Module {module} load fail! The repo is removed.", ephemeral = True)
-                            await msg.delete()
+                            await _delete_message(msg)
     ic()
     logger.debug("Kernel module load END")
 
