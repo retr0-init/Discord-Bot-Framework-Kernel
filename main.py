@@ -26,6 +26,7 @@ import pathlib
 import tempfile
 
 import interactions
+from interactions.ext.paginators import Paginator
 from interactions.client.errors import (
     MessageException,
     NotFound,
@@ -349,7 +350,8 @@ async def kernel_module_list(ctx: interactions.SlashContext):
     # Join the module list if the list is not empty
     if len(modules) > 0:
         modules_str: str = '- ' + '\n- '.join(modules)
-        await ctx.send("已加载的模块是\n" + modules_str)
+        paginator = Paginator.create_from_string(client, "已加载的模块是\n" + modules_str, page_size=1900)
+        await paginator.send(ctx)
     else:
         # There is no module loaded
         await ctx.send("没有加载的模块")
@@ -410,7 +412,8 @@ async def kernel_module_update(ctx: interactions.SlashContext, module: str):
             cl: str = await f.read()
     else:
         cL: str = "CHANGELOG not provided!"
-    await ctx.send(f"Module `{module}` updated!\nCHANGELOG:\n```\n{cl}\n```", ephemeral=False)
+    paginator = Paginator.create_from_string(client, f"Module `{module}` updated!\n# CHANGELOG:\n\n{cl}\n", page_size=1900)
+    await paginator.send(ctx)
 
 '''
 Show the module information
