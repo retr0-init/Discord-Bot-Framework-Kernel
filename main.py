@@ -140,8 +140,8 @@ async def _dm_key_members(
     key_members: list[Union[interactions.Member, interactions.User]] = await _get_key_members(ctx)
     dm_msg: list[interactions.Message] = []
     for key_member in key_members:
-        chan_dm = await key_member.fetch_dm()
         try:
+            chan_dm = await key_member.fetch_dm()
             _msg_to_send: interactions.Message = await chan_dm.send(content=msg, embeds=embeds, components=components)
         except (EmptyMessageException, NotFound, Forbidden, HTTPException) as e:
             logger.error(f"DM failed! Error as {e}")
