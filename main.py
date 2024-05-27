@@ -36,7 +36,8 @@ from interactions.client.errors import (
     InteractionMissingAccess,
     ExtensionLoadException,
     ExtensionNotFound,
-    Forbidden
+    Forbidden,
+    HTTPException
 )
 from dotenv import load_dotenv
 
@@ -142,7 +143,7 @@ async def _dm_key_members(
         chan_dm = await key_member.fetch_dm()
         try:
             _msg_to_send: interactions.Message = await chan_dm.send(content=msg, embeds=embeds, components=components)
-        except (EmptyMessageException, NotFound, Forbidden) as e:
+        except (EmptyMessageException, NotFound, Forbidden, HTTPException) as e:
             logger.error(f"DM failed! Error as {e}")
         else:
             dm_msg.append(_msg_to_send)
