@@ -436,6 +436,8 @@ async def kernel_module_info(ctx: interactions.SlashContext, module: str):
             changelogs[len(changelogs) - 1] += line
         else:
             changelogs.append(line)
+    if len(changelogs) == 0:
+        changelogs.append("")
 
     embed: interactions.Embed = interactions.Embed(
         title = "Module Information",
