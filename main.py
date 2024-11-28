@@ -427,6 +427,16 @@ async def kernel_module_info(ctx: interactions.SlashContext, module: str):
     if not valid:
         await ctx.send("The module does not exist!", ephemeral=True)
         return
+    
+    changelogs: list[str] = []
+    for line in info.CHANGELOG.splitlines(keepends=True):
+        if len(changelogs) == 0:
+            changelogs.append(line)
+        elif len(changelogs[len(changelogs) - 1]) + len(line) < 3500:
+            changelogs[len(changelogs) - 1] += line
+        else:
+            changelogs.append(line)
+
     embed: interactions.Embed = interactions.Embed(
         title = "Module Information",
         description = f'''### {module}
@@ -442,13 +452,25 @@ async def kernel_module_info(ctx: interactions.SlashContext, module: str):
 
 ### CHANGELOG
 ```
-{info.CHANGELOG}
+{changelogs[0]}
 ```
 ''',
         color = interactions.Color.from_rgb(255, 0, 0) if info.modifications > 0 else interactions.Color.from_rgb(0, 255, 0),
         url = info.remote_url
     )
-    await ctx.send(embed=embed)
+    embeds: list[interactions.Embed] = [embed]
+    changelogs.pop(0)
+    embeds.extend([interactions.Embed(
+        title = "Module Changelog",
+        description = f'''
+```
+{changelog}
+```
+''',
+        color = interactions.Color.from_rgb(255, 0, 0) if info.modifications > 0 else interactions.Color.from_rgb(0, 255, 0),
+        url = info.remote_url) for changelog in changelogs])
+    paginator = Paginator.create_from_embeds(client, *embeds)
+    await paginator.send(ctx)
 
 '''
 Autocomplete function for the kernel module unloading and update commands
