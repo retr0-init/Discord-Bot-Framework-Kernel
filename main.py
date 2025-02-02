@@ -228,18 +228,34 @@ def pull_git_repo_base(repo_path: str) -> int:
         repo = pygit2.Repository(repo_path)
         origin = repo.remotes["origin"]
         if not origin:
+            logger.error("Remote 'origin' not found in repository")
             return 2
-        origin.fetch()
-        remote_master = repo.lookup_reference("refs/remotes/origin/master").target
-        repo.checkout_tree(repo.get(remote_master))
-        master = repo.lookup_reference("refs/heads/master")
-        master.set_target(remote_master)
-        repo.head.set_target(remote_master)
-        return 0
-    except pygit2.GitError:
+
+        try:
+            origin.fetch()
+        except pygit2.GitError as e:
+            logger.error(f"Failed to fetch from remote: {e}")
+            return 2
+
+        try:
+            remote_master = repo.lookup_reference("refs/remotes/origin/master").target
+            repo.checkout_tree(repo.get(remote_master))
+            master = repo.lookup_reference("refs/heads/master")
+            master.set_target(remote_master)
+            repo.head.set_target(remote_master)
+            return 0
+        except KeyError as e:
+            logger.error(f"Failed to find master branch: {e}")
+            return 3
+        except pygit2.GitError as e:
+            logger.error(f"Git error during checkout: {e}")
+            return 2
+    except pygit2.GitError as e:
+        logger.error(f"Repository error: {e}")
         return 2
-    except KeyError:
-        return 3
+    except Exception as e:
+        logger.exception(f"Unexpected error in pull_git_repo_base: {e}")
+        return 2
 
 
 def pull_git_repo(name: str) -> int:
@@ -249,11 +265,6 @@ def pull_git_repo(name: str) -> int:
         if repo_path == pygit2.discover_repository(os.getcwd()):
             return 1
         return pull_git_repo_base(repo_path)
-    except (ImportError, RuntimeError, OSError) as e:
-        logger.error(
-            f"{'Git operation' if isinstance(e, (ImportError, RuntimeError)) else 'OS'} error during pull: {e}"
-        )
-        return 2
     except Exception as e:
         logger.exception(f"Unexpected error pulling repository: {e}")
         return 2
@@ -269,13 +280,10 @@ def delete_git_repo(name: str) -> None:
         logger.warning("System vulnerable to symlink attacks")
 
     def handle_error(_: Callable, path: str, exc_info: tuple) -> None:
-        logger.error(f"Delete error at {path}: {exc_info[1]}")
+        logger.exception(f"Delete error at {path}: {exc_info[1]}")
 
     try:
         shutil.rmtree(path, onerror=handle_error)
-    except OSError as e:
-        logger.error(f"Failed to delete repository: {e}")
-        raise
     except Exception as e:
         logger.exception(f"Unexpected error deleting repository: {e}")
         raise
@@ -384,7 +392,15 @@ def get_kernel_repo_info() -> GitRepoInfo:
 
 
 def pull_kernel_repo() -> int:
-    return pull_git_repo_base(next(iter([pygit2.discover_repository(os.getcwd())])))
+    try:
+        repo_path = pygit2.discover_repository(os.getcwd())
+        if not repo_path:
+            logger.error("Could not discover repository in current directory")
+            return 2
+        return pull_git_repo_base(repo_path)
+    except Exception as e:
+        logger.exception(f"Error in pull_kernel_repo: {e}")
+        return 2
 
 
 ################ Model ################
@@ -557,7 +573,7 @@ async def dm_members(
             )
             dm_msg_append(msg_to_send)
         except (MessageException, HTTPException, InteractionException, OSError) as e:
-            logger.error("Failed to send DM: {str(e)}")
+            logger.error(f"Failed to send DM: {str(e)}")
         except Exception as e:
             logger.exception("Unexpected error sending DM: %s", e)
 
@@ -568,113 +584,112 @@ async def dm_members(
 ################ Delete files ################
 
 
-@kernel_debug.subcommand(
-    "delete", sub_cmd_description="Delete files from the extension directory"
-)
-@interactions.slash_option(
-    name="type",
-    description="Type of files to delete",
-    required=True,
-    opt_type=interactions.OptionType.STRING,
-    autocomplete=True,
-    argument_name="file_type",
-)
-@interactions.check(interactions.has_id(1268909926458064991))
-async def cmd_delete(ctx: interactions.SlashContext, file_type: str) -> None:
-    try:
-        await ctx.defer(ephemeral=True)
-    except InteractionException as e:
-        logger.error("Failed to defer interaction: %s", e)
-        return
-    except Exception as e:
-        logger.exception("Unexpected error deferring interaction: %s", e)
-        return
+# @kernel_debug.subcommand(
+#     "delete", sub_cmd_description="Delete files from the extension directory"
+# )
+# @interactions.slash_option(
+#     name="type",
+#     description="Type of files to delete",
+#     required=True,
+#     opt_type=interactions.OptionType.STRING,
+#     autocomplete=True,
+#     argument_name="file_type",
+# )
+# async def cmd_delete(ctx: interactions.SlashContext, file_type: str) -> None:
+#     try:
+#         await ctx.defer(ephemeral=True)
+#     except InteractionException as e:
+#         logger.error("Failed to defer interaction: %s", e)
+#         return
+#     except Exception as e:
+#         logger.exception("Unexpected error deferring interaction: %s", e)
+#         return
 
-    if not os.path.exists(BASE_DIR):
-        await send_error(client, ctx, "Extension directory does not exist.")
-        return
+#     if not os.path.exists(BASE_DIR):
+#         await send_error(client, ctx, "Extension directory does not exist.")
+#         return
 
-    if file_type == "all":
-        await send_error(
-            client, ctx, "Cannot delete all files at once for safety reasons."
-        )
-        return
+#     if file_type == "all":
+#         await send_error(
+#             client, ctx, "Cannot delete all files at once for safety reasons."
+#         )
+#         return
 
-    file_path: str = os.path.join(BASE_DIR, file_type)
-    if not os.path.isfile(file_path):
-        await send_error(
-            client,
-            ctx,
-            f"File `{file_type}` does not exist in the extension directory.",
-        )
-        return
+#     file_path: str = os.path.join(BASE_DIR, file_type)
+#     if not os.path.isfile(file_path):
+#         await send_error(
+#             client,
+#             ctx,
+#             f"File `{file_type}` does not exist in the extension directory.",
+#         )
+#         return
 
-    try:
-        os.remove(file_path)
-    except (PermissionError, OSError) as e:
-        logger.error(
-            "%s error while deleting %s: %s",
-            "Permission denied" if isinstance(e, PermissionError) else "OS",
-            file_type,
-            e,
-        )
-        await send_error(
-            client,
-            ctx,
-            (
-                "Permission denied while deleting file."
-                if isinstance(e, PermissionError)
-                else "Failed to delete file."
-            ),
-        )
-        return
-    except Exception as e:
-        logger.exception("Unexpected error deleting %s: %s", file_type, e)
-        await send_error(client, ctx, f"An unexpected error occurred: {e}")
-        return
+#     try:
+#         os.remove(file_path)
+#     except (PermissionError, OSError) as e:
+#         logger.error(
+#             "%s error while deleting %s: %s",
+#             "Permission denied" if isinstance(e, PermissionError) else "OS",
+#             file_type,
+#             e,
+#         )
+#         await send_error(
+#             client,
+#             ctx,
+#             (
+#                 "Permission denied while deleting file."
+#                 if isinstance(e, PermissionError)
+#                 else "Failed to delete file."
+#             ),
+#         )
+#         return
+#     except Exception as e:
+#         logger.exception("Unexpected error deleting %s: %s", file_type, e)
+#         await send_error(client, ctx, f"An unexpected error occurred: {e}")
+#         return
 
-    await send_success(client, ctx, f"Successfully deleted file `{file_type}`.")
-    logger.info("Deleted file %s from extension directory", file_type)
+#     await send_success(client, ctx, f"Successfully deleted file `{file_type}`.")
+#     logger.info("Deleted file %s from extension directory", file_type)
 
 
-@cmd_delete.autocomplete("type")
-async def delete_type_autocomplete(ctx: interactions.AutocompleteContext) -> None:
-    choices: list[dict[str, str]] = []
+# @cmd_delete.autocomplete("type")
+# async def delete_type_autocomplete(ctx: interactions.AutocompleteContext) -> None:
+#     choices: list[dict[str, str]] = []
 
-    try:
-        if os.path.exists(BASE_DIR):
-            files: list[str] = [
-                f
-                for f in os.listdir(BASE_DIR)
-                if os.path.isfile(os.path.join(BASE_DIR, f)) and not f.startswith(".")
-            ]
-            choices = [{"name": file, "value": file} for file in sorted(files)]
-    except (PermissionError, OSError) as e:
-        logger.error(
-            "%s error while listing files: %s",
-            "Permission denied" if isinstance(e, PermissionError) else "OS",
-            e,
-        )
-        choices = [
-            {
-                "name": (
-                    "Error: Permission denied"
-                    if isinstance(e, PermissionError)
-                    else f"Error: {e}"
-                ),
-                "value": "error",
-            }
-        ]
-    except Exception as e:
-        logger.exception("Unexpected error listing files: %s", e)
-        choices = [{"name": f"Error: {e}", "value": "error"}]
+#     try:
+#         if os.path.exists(BASE_DIR):
+#             files: list[str] = [
+#                 f
+#                 for f in os.listdir(BASE_DIR)
+#                 if os.path.isfile(os.path.join(BASE_DIR, f)) and not f.startswith(".")
+#             ]
+#             choices = [{"name": file, "value": file} for file in sorted(files)]
+#     except (PermissionError, OSError) as e:
+#         logger.error(
+#             "%s error while listing files: %s",
+#             "Permission denied" if isinstance(e, PermissionError) else "OS",
+#             e,
+#         )
+#         choices = [
+#             {
+#                 "name": (
+#                     "Error: Permission denied"
+#                     if isinstance(e, PermissionError)
+#                     else f"Error: {e}"
+#                 ),
+#                 "value": "error",
+#             }
+#         ]
+#     except Exception as e:
+#         logger.exception("Unexpected error listing files: %s", e)
+#         choices = [{"name": f"Error: {e}", "value": "error"}]
 
-    try:
-        await ctx.send(choices[:25])
-    except InteractionException as e:
-        logger.error("Failed to send autocomplete choices: %s", e)
-    except Exception as e:
-        logger.exception("Unexpected error sending autocomplete choices: %s", e)
+#     try:
+#         await ctx.send(choices[:25])
+#     except InteractionException as e:
+#         logger.error("Failed to send autocomplete choices: %s", e)
+#     except Exception as e:
+#         logger.exception("Unexpected error sending autocomplete choices: %s", e)
 
 
 ################ Export files ################
@@ -773,11 +788,11 @@ async def export_type_autocomplete(ctx: interactions.AutocompleteContext) -> Non
     await ctx.send(choices[:25])
 
 
-@kernel_review.subcommand("reboot", sub_cmd_description="Reboot the bot")
+@kernel_debug.subcommand("reboot", sub_cmd_description="Reboot the bot")
 @interactions.check(role_check)
 @interactions.max_concurrency(interactions.Buckets.GUILD, 1)
 @interactions.cooldown(interactions.Buckets.GUILD, 2, 60)
-async def cmd_internal_reboot(ctx: interactions.SlashContext) -> None:
+async def cmd_debug_reboot(ctx: interactions.SlashContext) -> None:
     await ctx.defer(ephemeral=True)
     executor: interactions.Member = ctx.author
     embed = await create_embed(
@@ -974,7 +989,11 @@ async def cmd_module_load(ctx: interactions.SlashContext, url: str) -> None:
         client.reload_extension(f"extensions.{module}.main")
         logger.info(f"Loaded extension extensions.{module}.main")
         try:
-            await msg.edit(content=f"Loaded module `extensions.{module}.main`.")
+            await send_success(
+                client,
+                ctx,
+                f"Loaded module `extensions.{module}.main`.",
+            )
         except InteractionException as e:
             logger.warning(f"Failed to edit message: {e}")
             await send_success(
@@ -1072,37 +1091,38 @@ async def cmd_module_unload(ctx: interactions.SlashContext, module: str) -> None
         logger.exception(f"Unexpected error sending notification: {e}")
 
     try:
-        client.unload_extension(f"extensions.{module}.main")
-        try:
-            await client.synchronise_interactions(delete_commands=True)
-        except InteractionException as e:
-            logger.error(f"Failed to synchronize commands: {e}")
-    except ImportError as e:
-        logger.exception(f"Import error while unloading {module}: {e}")
-        await send_error(
+        if hasattr(client, "interactions_by_scope"):
+            client.unload_extension(f"extensions.{module}.main")
+        else:
+            logger.warning("Client not properly initialized, skipping extension unload")
+    except (AttributeError, ExtensionException) as e:
+        logger.warning(f"Non-critical error unloading extension: {e}")
+
+    try:
+        await client.synchronise_interactions(delete_commands=True)
+    except InteractionException as e:
+        logger.error(f"Failed to synchronize commands: {e}")
+
+    try:
+        delete_git_repo(module)
+        await send_success(
             client,
             ctx,
-            f"Failed to unload module `{module}` due to import error. Error: {str(e)}",
+            f"Unloaded module `{module}` and cleaned up resources.",
         )
-    except ExtensionException as e:
-        logger.exception(f"Extension error while unloading {module}: {e}")
+    except (ImportError, ExtensionException) as e:
+        logger.error(f"Error while unloading {module}: {e}")
         await send_error(
             client,
             ctx,
-            f"Failed to unload module `{module}`. Error: {str(e)}",
+            f"Failed to unload module `{module}`.",
         )
     except Exception as e:
         logger.exception(f"Unexpected error while unloading {module}: {e}")
         await send_error(
             client,
             ctx,
-            f"Failed to unload module `{module}` cleanly, but proceeding with deletion. Error: {str(e)}.",
-        )
-    else:
-        await send_success(
-            client,
-            ctx,
-            f"Unloaded module `{module}` and cleaned up resources.",
+            f"Failed to unload module `{module}` cleanly, but proceeding with deletion.",
         )
     finally:
         try:
@@ -1224,7 +1244,7 @@ async def cmd_module_update(ctx: interactions.SlashContext, module: str) -> None
     try:
         embed = await create_embed(
             client,
-            "Module Update",
+            "Module Updated",
             f"{executor.mention} is updating module `{module}`.",
             EmbedColor.WARN,
         )
@@ -1264,6 +1284,7 @@ async def cmd_module_update(ctx: interactions.SlashContext, module: str) -> None
                 (r for i, r in enumerate(error_reasons) if i == err - 1),
                 "Unknown error",
             )
+            logger.exception(f"Module update failed: {error_msg}")
             await send_error(
                 client,
                 ctx,
@@ -1316,14 +1337,21 @@ async def cmd_module_update(ctx: interactions.SlashContext, module: str) -> None
 
         result_embed = await create_embed(
             client,
-            "Module Update Complete",
+            "Module Update",
             f"Updated module `{module}` to the latest version.",
         )
-        result_embed.add_field(
-            name="Changelog",
-            value=cl[:1000] + "..." if len(cl) > 1000 else cl,
-            inline=True,
-        )
+
+        field_limit = 1000
+        changelog_parts = [
+            cl[i : i + field_limit] for i in range(0, len(cl), field_limit)
+        ]
+
+        for i, part in enumerate(changelog_parts):
+            field_name = "CHANGELOG" if i == 0 else f"CHANGELOG (continued {i+1})"
+            result_embed.add_field(
+                name=field_name,
+                value=code_block(part, "py"),
+            )
 
         paginator = Paginator(
             client,
@@ -1416,18 +1444,25 @@ async def cmd_module_info(ctx: interactions.SlashContext, module: str) -> None:
         )
 
         changelog_content = (
-            "No changelog information available"
-            if not info.CHANGELOG.strip()
-            else (
-                info.CHANGELOG[:1000] + "..."
-                if len(info.CHANGELOG) > 1000
-                else info.CHANGELOG
-            )
+            info.CHANGELOG.strip() or "No changelog information available"
         )
 
-        result_embed.add_field(
-            name="Recent Changes", value=code_block(changelog_content, "py")
-        )
+        chunk_size = 1000
+        chunks = [
+            changelog_content[i : i + chunk_size]
+            for i in range(0, len(changelog_content), chunk_size)
+        ]
+
+        for i, chunk in enumerate(chunks, 1):
+            field_name = (
+                "Recent Changes"
+                if len(chunks) == 1
+                else f"Recent Changes (Part {i}/{len(chunks)})"
+            )
+            result_embed.add_field(
+                name=field_name,
+                value=code_block(chunk, "py"),
+            )
 
         paginator = Paginator(
             client,
@@ -1469,6 +1504,11 @@ async def module_module_autocomplete(ctx: interactions.AutocompleteContext) -> N
             and validate_git_repo(i)
         ]
         modules_auto: list[str] = [i for i in modules if module_option_input in i]
+        if not modules_auto and modules:
+            await ctx.send(
+                choices=[{"name": "No matching modules found", "value": "none"}]
+            )
+            return
 
         await ctx.send(choices=[{"name": i, "value": i} for i in modules_auto][:25])
     except OSError as e:
@@ -1478,18 +1518,21 @@ async def module_module_autocomplete(ctx: interactions.AutocompleteContext) -> N
         logger.error(f"Failed to send autocomplete choices: {e}")
     except Exception as e:
         logger.exception(f"Unexpected error in module autocomplete: {e}")
-        await ctx.send(choices=[{"name": "Error occurred", "value": "error"}])
+        try:
+            await ctx.send(choices=[{"name": "Error occurred", "value": "error"}])
+        except Exception:
+            pass
 
 
 is_download_in_progress: bool = False
 
 
-@kernel_review.subcommand(
+@kernel_debug.subcommand(
     "download", sub_cmd_description="Download current running code in tarball"
 )
 @interactions.max_concurrency(interactions.Buckets.GUILD, 1)
 @interactions.cooldown(interactions.Buckets.GUILD, 2, 60)
-async def cmd_review_download(ctx: interactions.SlashContext) -> None:
+async def cmd_debug_download(ctx: interactions.SlashContext) -> None:
     global is_download_in_progress
     if is_download_in_progress:
         try:
@@ -1548,7 +1591,7 @@ async def cmd_review_download(ctx: interactions.SlashContext) -> None:
             try:
                 compress_temp(tmp.name)
                 await ctx.send(
-                    "Current code that is running as attached", file=tmp.name
+                    "Current code that is running as attached:", file=tmp.name
                 )
             except InteractionException as e:
                 logger.error(f"Failed to send file: {e}")
@@ -1709,6 +1752,7 @@ async def cmd_review_update(ctx: interactions.SlashContext) -> None:
 
     try:
         if (err := pull_kernel_repo()) != 0:
+            logger.exception(f"Kernel update failed: {err}")
             await send_error(
                 client,
                 ctx,
@@ -1731,10 +1775,6 @@ async def cmd_review_update(ctx: interactions.SlashContext) -> None:
 
     try:
         execute_pip_requirements(str(requirements_path))
-    except (ImportError, RuntimeError) as e:
-        logger.error(f"Failed to update requirements: {e}")
-        await send_error(client, ctx, f"Failed to update kernel dependencies: {e}")
-        return
     except Exception as e:
         logger.exception(f"Unexpected error updating requirements: {e}")
         await send_error(client, ctx, "Failed to update kernel dependencies")
