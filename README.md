@@ -1,32 +1,66 @@
-- [中文](#Discord机器人框架内核)
-- [English](#Discord-Bot-Framework-Kernel)
-
-# Discord机器人框架内核
-![doc/discord-bot-framework.drawio.png](https://github.com/retr0-init/discord-bot-framework-doc/blob/master/discord-bot-framework.drawio.png)
-
-如上图所示，这是与模块相结合与互动的内核。其中所有的功能应该是必要、极简的，并且也要为了更好地模块化集成提供极可能多的接口。
-
-模块模板在[这里](https://github.com/retr0-init/Discord-Bot-Framework-Module-Template.git)。这是一个模板仓库，可以创建用于模块开发的仓库。为了能让您的模块以最好的方式与内核一起工作，请按照其中的`README.md`中的准则进行开发。
-
-## 如何运行
-1. 安装python3. 它的版本应该至少为`3.10`。
-2. 安装[firejail](https://github.com/netblue30/firejail)。
-3. 安装[npm](https://github.com/nodesource/distributions?tab=readme-ov-file#using-debian-as-root)。
-4. 安装[PM2](https://pm2.keymetrics.io/). `sudo npm install pm2@latest -g`。
-5. 拷贝[`dotenv_template.env`](dotenv_template.env)到`.env`。填入环境变量。
-6. 运行`pm2_start.sh`。
-
 # Discord Bot Framework Kernel
-![doc/discord-bot-framework-en.drawio.png](https://github.com/retr0-init/discord-bot-framework-doc/blob/master/discord-bot-framework-en.drawio.png)
 
-As shown above, this is the kernel to interact with modules. All features are meant to be essential, minimal while providing as many ports as possible for greater modularity.
+A robust Discord bot framework built with [interactions.py](https://interactions-py.github.io/interactions.py/), featuring modular extension management and secure execution.
 
-The module template is [here](https://github.com/retr0-init/Discord-Bot-Framework-Module-Template.git). It's a template repository that can create a new repository for module development. Please follow the template guidelines as stated in its `README.md` file to make it properly work with the kernel.
+## Usage
 
-## How to run it
-1. Install python3, whose version is `>=3.10`.
-2. Install [firejail](https://github.com/netblue30/firejail).
-3. Install [npm](https://github.com/nodesource/distributions?tab=readme-ov-file#using-debian-as-root).
-4. Install [PM2](https://pm2.keymetrics.io/). `sudo npm install pm2@latest -g`.
-5. Copy [`dotenv_template.env`](dotenv_template.env) as `.env`. Fill in the environmental variables.
-6. Execute `./pm2_start.sh`.
+### Slash Commands
+
+#### Kernel Module
+
+- `/kernel module load <url>` - Load a module from a Git repository (HTTPS URL required; privileged users only)
+- `/kernel module unload <module>` - Unload and remove a module (privileged users only)
+- `/kernel module update <module>` - Update a module to its latest version (privileged users only)
+- `/kernel module info <module>` - Display detailed module information
+- `/kernel module list` - Show all loaded modules
+
+#### Kernel Review
+
+- `/kernel review info` - Display kernel information
+- `/kernel review update` - Update kernel to latest version (privileged users only)
+
+#### Debug Operations
+
+- `/kernel debug download` - Download current running code as tarball
+- `/kernel debug reboot` - Restart the bot (privileged users only)
+- `/kernel debug export` - Export files from the extension directory (privileged users only)
+
+### Deployment
+
+1. Install prerequisites:
+   1. Python 3.10 or higher required
+   2. Install [Firejail](https://github.com/netblue30/firejail)
+   3. Install [npm](https://github.com/nodesource/distributions?tab=readme-ov-file#using-debian-as-root) and [PM2](https://pm2.keymetrics.io/)
+
+2. Configure environment:
+   1. Copy `dotenv_template.env` as `.env`
+   2. Edit `.env` with required values
+
+3. Launch using PM2:
+
+   ```bash
+   ./pm2_start.sh
+   ```
+
+## Configuration
+
+- `.env` - Environment variables configuration
+  - `TOKEN` - Discord bot token
+  - `GUILD_ID` - Development guild ID
+  - `ROLE_ID` - Admin role ID
+- `main.log` - Runtime logs
+- `extensions/` - Module directory
+  - Each module requires:
+    - `requirements.txt`
+    - `main.py`
+    - `CHANGELOG`
+
+## Acknowledgements
+
+This project incorporates code and ideas from:
+
+- [interactions-py/template](https://github.com/interactions-py/template) (GPL-3.0)
+- [retr0-init/Discord-Bot-Framework-Kernel](https://github.com/retr0-init/Discord-Bot-Framework-Kernel) (GPL-3.0)
+- Stack Overflow:
+  - [Pull the kernel git repo from remote "master" branch only](https://stackoverflow.com/a/27786533) (CC-BY-SA-3.0)
+  - [Load the module from remote HTTPS Git Repository](https://stackoverflow.com/a/14050282) (CC-BY-SA-3.0)
