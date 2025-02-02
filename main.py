@@ -62,6 +62,11 @@ file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
 
 
+"""
+Shutdown
+"""
+
+
 async def graceful_shutdown(
     signal: signal.Signals, loop: asyncio.AbstractEventLoop
 ) -> None:
@@ -128,24 +133,9 @@ except Exception as e:
     sys.exit(1)
 
 
-async def role_check(ctx: interactions.BaseContext) -> bool:
-    try:
-        return any(
-            [
-                await interactions.is_owner()(ctx),
-                (
-                    ctx.author.has_role(os.environ.get("ROLE_ID", ""))
-                    if os.environ.get("ROLE_ID")
-                    else False
-                ),
-            ]
-        )
-    except (AttributeError, TypeError, ValueError) as e:
-        logger.error(f"Failed to check roles: {e}")
-        return False
-    except Exception as e:
-        logger.exception(f"Unexpected error in role check: {e}")
-        return False
+"""
+Startup
+"""
 
 
 @interactions.listen()
@@ -403,7 +393,12 @@ def pull_kernel_repo() -> int:
         return 2
 
 
-################ Model ################
+################ View ################
+
+
+"""
+Model
+"""
 
 
 class EmbedColor(IntEnum):
@@ -418,7 +413,9 @@ class EmbedColor(IntEnum):
     ALL = 0x0063B1
 
 
-################ View functions ################
+"""
+Functions
+"""
 
 
 async def create_embed(
@@ -499,7 +496,12 @@ async def send_success(
         logger.exception(f"Unexpected error sending success message: {str(e)}")
 
 
-################ Kernel functions ################
+################ Kernel ################
+
+
+"""
+Command groups
+"""
 
 
 kernel_base: interactions.SlashCommand = interactions.SlashCommand(
@@ -514,6 +516,11 @@ kernel_review: interactions.SlashCommand = kernel_base.group(
 kernel_debug: interactions.SlashCommand = kernel_base.group(
     name="debug", description="Debug commands"
 )
+
+
+"""
+Member functions
+"""
 
 
 dm_messages: dict[str, list[interactions.Message]] = dict()
@@ -581,7 +588,9 @@ async def dm_members(
         dm_messages[custom_id] = dm_msg
 
 
-################ Delete files ################
+# """
+# Delete files
+# """
 
 
 # @kernel_debug.subcommand(
@@ -692,7 +701,9 @@ async def dm_members(
 #         logger.exception("Unexpected error sending autocomplete choices: %s", e)
 
 
-################ Export files ################
+"""
+Export files
+"""
 
 
 @kernel_debug.subcommand(
@@ -788,6 +799,36 @@ async def export_type_autocomplete(ctx: interactions.AutocompleteContext) -> Non
     await ctx.send(choices[:25])
 
 
+"""
+Role check
+"""
+
+
+async def role_check(ctx: interactions.BaseContext) -> bool:
+    try:
+        return any(
+            [
+                await interactions.is_owner()(ctx),
+                (
+                    ctx.author.has_role(os.environ.get("ROLE_ID", ""))
+                    if os.environ.get("ROLE_ID")
+                    else False
+                ),
+            ]
+        )
+    except (AttributeError, TypeError, ValueError) as e:
+        logger.error(f"Failed to check roles: {e}")
+        return False
+    except Exception as e:
+        logger.exception(f"Unexpected error in role check: {e}")
+        return False
+
+
+"""
+Reboot the bot
+"""
+
+
 @kernel_debug.subcommand("reboot", sub_cmd_description="Reboot the bot")
 @interactions.check(role_check)
 @interactions.max_concurrency(interactions.Buckets.GUILD, 1)
@@ -812,6 +853,11 @@ async def cmd_debug_reboot(ctx: interactions.SlashContext) -> None:
 
     with open("kernel_flag/reboot", "a", buffering=1) as f:
         f.write(f"Rebooted at {datetime.now(timezone.utc).ctime()}")
+
+
+"""
+Load module
+"""
 
 
 @kernel_module.subcommand(
@@ -1024,6 +1070,11 @@ async def cmd_module_load(ctx: interactions.SlashContext, url: str) -> None:
             logger.exception(f"Unexpected error deleting message: {e}")
 
 
+"""
+Unload/update/info module option
+"""
+
+
 def kernel_module_option_module() -> Callable:
     return lambda func: (
         interactions.slash_option(
@@ -1034,6 +1085,11 @@ def kernel_module_option_module() -> Callable:
             autocomplete=True,
         )(func)
     )
+
+
+"""
+Unload module
+"""
 
 
 @kernel_module.subcommand("unload", sub_cmd_description="Unload module")
@@ -1133,84 +1189,9 @@ async def cmd_module_unload(ctx: interactions.SlashContext, module: str) -> None
             logger.exception(f"Unexpected error during cleanup: {e}")
 
 
-@kernel_module.subcommand("list", sub_cmd_description="List loaded modules")
-async def cmd_module_list(ctx: interactions.SlashContext) -> None:
-    try:
-        modules = {
-            module
-            for module in os.scandir("extensions")
-            if module.is_dir()
-            and module.name != "__pycache__"
-            and validate_git_repo(module.name)
-        }
-    except OSError as e:
-        logger.error(f"Failed to scan extensions directory: {e}")
-        await send_error(client, ctx, "Failed to access modules directory")
-        return
-    except Exception as e:
-        logger.exception(f"Unexpected error scanning modules: {e}")
-        await send_error(client, ctx, "Failed to list modules")
-        return
-
-    if not modules:
-        await send_error(
-            client,
-            ctx,
-            "No modules are currently loaded. Use `/kernel module load` to add new modules.",
-        )
-        return
-
-    try:
-        embed = await create_embed(client, "Loaded Modules")
-    except (AttributeError, ValueError) as e:
-        logger.error(f"Failed to create embed: {e}")
-        await send_error(client, ctx, "Failed to create module list")
-        return
-    except Exception as e:
-        logger.exception(f"Unexpected error creating embed: {e}")
-        await send_error(client, ctx, "Failed to display module list")
-        return
-
-    for module in modules:
-        try:
-            info, _ = get_git_repo_info(module.name)
-            commit_id = str(info.current_commit.id)
-            display_name = (
-                module.name.split("_s_")[-1] if "_s_" in module.name else module.name
-            )
-            embed.add_field(
-                name=display_name,
-                value=f"- Commit: `{commit_id[:7]}`\n- URL: {info.remote_url}",
-                inline=True,
-            )
-        except (AttributeError, ValueError) as e:
-            logger.error(f"Error adding module {module.name} to list: {e}")
-            continue
-        except Exception as e:
-            logger.exception(f"Unexpected error processing module {module.name}: {e}")
-            continue
-
-    try:
-        paginator = Paginator(
-            client,
-            pages=[embed],
-            timeout_interval=180,
-            show_callback_button=True,
-            show_select_menu=True,
-            show_back_button=True,
-            show_next_button=True,
-            show_first_button=True,
-            show_last_button=True,
-            wrong_user_message="Only the user who requested this list can control the pagination.",
-            hide_buttons_on_stop=True,
-        )
-        await paginator.send(ctx)
-    except InteractionException as e:
-        logger.error(f"Failed to send paginated response: {e}")
-        await send_error(client, ctx, "Failed to display module list")
-    except Exception as e:
-        logger.exception(f"Unexpected error sending paginated response: {e}")
-        await send_error(client, ctx, "Failed to show module list")
+"""
+Update module
+"""
 
 
 @kernel_module.subcommand("update", sub_cmd_description="Update the module")
@@ -1379,6 +1360,11 @@ async def cmd_module_update(ctx: interactions.SlashContext, module: str) -> None
         await send_error(client, ctx, "Failed to complete update process")
 
 
+"""
+Show module information
+"""
+
+
 @kernel_module.subcommand("info", sub_cmd_description="Show module information")
 @kernel_module_option_module()
 async def cmd_module_info(ctx: interactions.SlashContext, module: str) -> None:
@@ -1490,6 +1476,11 @@ async def cmd_module_info(ctx: interactions.SlashContext, module: str) -> None:
         await send_error(client, ctx, "Failed to show module information")
 
 
+"""
+Autocomplete for module commands
+"""
+
+
 @cmd_module_unload.autocomplete("module")
 @cmd_module_update.autocomplete("module")
 @cmd_module_info.autocomplete("module")
@@ -1522,6 +1513,96 @@ async def module_module_autocomplete(ctx: interactions.AutocompleteContext) -> N
             await ctx.send(choices=[{"name": "Error occurred", "value": "error"}])
         except Exception:
             pass
+
+
+"""
+List loaded modules
+"""
+
+
+@kernel_module.subcommand("list", sub_cmd_description="List loaded modules")
+async def cmd_module_list(ctx: interactions.SlashContext) -> None:
+    try:
+        modules = {
+            module
+            for module in os.scandir("extensions")
+            if module.is_dir()
+            and module.name != "__pycache__"
+            and validate_git_repo(module.name)
+        }
+    except OSError as e:
+        logger.error(f"Failed to scan extensions directory: {e}")
+        await send_error(client, ctx, "Failed to access modules directory")
+        return
+    except Exception as e:
+        logger.exception(f"Unexpected error scanning modules: {e}")
+        await send_error(client, ctx, "Failed to list modules")
+        return
+
+    if not modules:
+        await send_error(
+            client,
+            ctx,
+            "No modules are currently loaded. Use `/kernel module load` to add new modules.",
+        )
+        return
+
+    try:
+        embed = await create_embed(client, "Loaded Modules")
+    except (AttributeError, ValueError) as e:
+        logger.error(f"Failed to create embed: {e}")
+        await send_error(client, ctx, "Failed to create module list")
+        return
+    except Exception as e:
+        logger.exception(f"Unexpected error creating embed: {e}")
+        await send_error(client, ctx, "Failed to display module list")
+        return
+
+    for module in modules:
+        try:
+            info, _ = get_git_repo_info(module.name)
+            commit_id = str(info.current_commit.id)
+            display_name = (
+                module.name.split("_s_")[-1] if "_s_" in module.name else module.name
+            )
+            embed.add_field(
+                name=display_name,
+                value=f"- Commit: `{commit_id[:7]}`\n- URL: {info.remote_url}",
+                inline=True,
+            )
+        except (AttributeError, ValueError) as e:
+            logger.error(f"Error adding module {module.name} to list: {e}")
+            continue
+        except Exception as e:
+            logger.exception(f"Unexpected error processing module {module.name}: {e}")
+            continue
+
+    try:
+        paginator = Paginator(
+            client,
+            pages=[embed],
+            timeout_interval=180,
+            show_callback_button=True,
+            show_select_menu=True,
+            show_back_button=True,
+            show_next_button=True,
+            show_first_button=True,
+            show_last_button=True,
+            wrong_user_message="Only the user who requested this list can control the pagination.",
+            hide_buttons_on_stop=True,
+        )
+        await paginator.send(ctx)
+    except InteractionException as e:
+        logger.error(f"Failed to send paginated response: {e}")
+        await send_error(client, ctx, "Failed to display module list")
+    except Exception as e:
+        logger.exception(f"Unexpected error sending paginated response: {e}")
+        await send_error(client, ctx, "Failed to show module list")
+
+
+"""
+Download current running code
+"""
 
 
 is_download_in_progress: bool = False
@@ -1604,6 +1685,11 @@ async def cmd_debug_download(ctx: interactions.SlashContext) -> None:
                 await send_error(client, ctx, "Failed to process download request")
     finally:
         is_download_in_progress = False
+
+
+"""
+Show kernel information
+"""
 
 
 @kernel_review.subcommand("info", sub_cmd_description="Show the Kernel information")
@@ -1694,7 +1780,9 @@ async def cmd_review_info(ctx: interactions.SlashContext) -> None:
         await send_error(client, ctx, "Failed to show kernel information")
 
 
-################ Update the kernel ################
+"""
+Update the kernel
+"""
 
 
 @kernel_review.subcommand("update", sub_cmd_description="Update the kernel")
@@ -1813,7 +1901,7 @@ async def cmd_review_update(ctx: interactions.SlashContext) -> None:
         await send_error(client, ctx, "Failed to complete update process")
 
 
-################ Kernel functions END ################
+################ main ################
 
 
 async def main() -> None:
