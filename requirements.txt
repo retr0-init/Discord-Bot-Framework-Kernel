@@ -1,6 +1,6 @@
-discord-py-interactions>=5.11.0
-python-dotenv>=0.19.1
-jurigged
-pygit2>=1.13.3
-icecream
 aiofiles
+aioshutil
+discord-py-interactions
+python-dotenv
+pygit2
+jurigged
