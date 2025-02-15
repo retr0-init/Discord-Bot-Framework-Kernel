@@ -14,7 +14,8 @@
 3. 安装[npm](https://github.com/nodesource/distributions?tab=readme-ov-file#using-debian-as-root)。
 4. 安装[PM2](https://pm2.keymetrics.io/). `sudo npm install pm2@latest -g`。
 5. 拷贝[`dotenv_template.env`](dotenv_template.env)到`.env`。填入环境变量。
-6. 运行`pm2_start.sh`。
+    1. 如果您要更新`.env`文件，运行`./pm2_delete.sh`终止机器人进程，将第5步重新做一次。
+6. 运行`./pm2_start.sh`。
 
 # Discord Bot Framework Kernel
 ![doc/discord-bot-framework-en.drawio.png](https://github.com/retr0-init/discord-bot-framework-doc/blob/master/discord-bot-framework-en.drawio.png)
@@ -29,4 +30,5 @@ The module template is [here](https://github.com/retr0-init/Discord-Bot-Framewor
 3. Install [npm](https://github.com/nodesource/distributions?tab=readme-ov-file#using-debian-as-root).
 4. Install [PM2](https://pm2.keymetrics.io/). `sudo npm install pm2@latest -g`.
 5. Copy [`dotenv_template.env`](dotenv_template.env) as `.env`. Fill in the environmental variables.
+    1. If you want to update `.env`, execute `./pm2_delete.sh` to shutdown the bot and repeat the Step 5 again.
 6. Execute `./pm2_start.sh`.

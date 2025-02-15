@@ -88,6 +88,11 @@ client = interactions.Client(
     intents=interactions.Intents.ALL,
 )
 
+# Remove Token from environment variables
+os.environ.pop("TOKEN")
+# Remove dotenv file (It's copied in the startup script "run.sh")
+os.remove(".env")
+
 '''
 Check the permission to run the key module command
 The ROLE_ID needs to be set in .env file
