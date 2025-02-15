@@ -243,7 +243,7 @@ private-tmp
 ##join-or-start NAME
 #memory-deny-write-execute
 ##noexec PATH
-read-only ${HOME}
+##read-only ${HOME}
 ##read-write ${HOME}
 restrict-namespaces
 

@@ -19,8 +19,18 @@
 # 
 
 CURRENT_DIR=$(dirname $0)
+CONFIGS_DIR=$CURRENT_DIR/../Discord-Bot-Framework-Kernel-Configs
+DOTENV_PATH=$CONFIGS_DIR/.env
 
 pushd ${CURRENT_DIR}
+
+if [[ -f .env ]]
+then
+    mkdir -p $CONFIGS_DIR
+    cp .env $DOTENV_PATH
+fi
+
+cp $DOTENV_PATH .
 
 python3 -m venv venv
 venv/bin/pip install -r requirements.txt
